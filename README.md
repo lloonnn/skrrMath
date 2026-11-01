@@ -2,7 +2,7 @@
 
 A note-taking web app for practising past-year exam papers by hand, with AI marking on the page.
 
-Status: planning. No code yet. Built with Claude Code. Every technical choice below is proposed, not final.
+Status: planning, with a first scaffold. `web/` has the app shell with the sidebar only. Built with Claude Code. Every technical choice below is proposed, not final.
 
 ## Problem
 
@@ -54,6 +54,7 @@ The first subject is mathematics (worked steps and proofs). Handwritten code and
 | Part | Proposed |
 |---|---|
 | App | React and TypeScript web app |
+| Interface components | shadcn/ui, light mode. The left sidebar starts from the `sidebar-08` block, adapted to a course, year and paper tree. App name: skrrMath. |
 | Canvas | An existing library (tldraw or Excalidraw, not chosen, licences unchecked) |
 | PDF import | pdf.js |
 | PDF export | Render pages to images, then build with jsPDF or pdf-lib |
@@ -65,11 +66,73 @@ The first subject is mathematics (worked steps and proofs). Handwritten code and
 
 Claude Code builds the project. A hosted prototype shows example results only, and real marking requires your own Gemini API key. Replit is an optional way for the owner to run the model API. The project does not require Replit.
 
+## Repository structure
+
+The folders exist. Only `web/` has code so far, the sidebar. The folders also hold short local README files for the coding assistant. They are not tracked in git, so they do not appear in a clone.
+
+| Folder | Purpose |
+|---|---|
+| `web/` | The browser app: React, TypeScript, Vite, shadcn/ui. Features are split by folder under `src/features`. |
+| `marking-service/` | The small server with one endpoint, `POST /api/mark`, and the `demo`, `google` and `replit` model modes. |
+| `shared/` | The marking result shape and validation, used by both `web` and `marking-service`. |
+| `fixtures/` | Made-up or own-work test and demo data. No school paper content. |
+| `supabase/` | The draft schema and database migrations. |
+| `e2e/` | Browser tests that cover the app and the service together. |
+| `scripts/` | Helper scripts. |
+| `docs/` | Architecture, marking design, plan, test log and the interface mockup. |
+
+```
+skrrMath/
+├── README.md
+├── CLAUDE.md
+├── .env.example
+├── .gitignore
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── MARKING.md
+│   ├── PLAN.md
+│   ├── TEST-LOG.md
+│   ├── img/                  the owner's handwritten test pages
+│   └── mockup/
+│       └── index.html
+├── web/
+│   └── src/
+│       ├── app/
+│       ├── components/
+│       ├── lib/
+│       └── features/
+│           ├── papers/
+│           ├── canvas/
+│           ├── blocks/
+│           ├── marking/
+│           ├── reference/
+│           ├── export/
+│           └── bank/
+├── marking-service/
+│   └── src/
+│       ├── providers/
+│       ├── pipeline/
+│       └── middleware/
+├── shared/
+│   └── src/
+├── fixtures/
+│   ├── marking/
+│   ├── images/
+│   └── pdf/
+├── supabase/
+│   ├── schema.sql
+│   └── migrations/
+├── e2e/
+└── scripts/
+```
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): components, data, flows and security.
 - [docs/MARKING.md](docs/MARKING.md): how the AI marks, the output format and test cases.
-- [docs/PLAN.md](docs/PLAN.md): the 8-day plan, the cut line and the tests to run first.
+- [docs/PLAN.md](docs/PLAN.md): the 8-day plan with automated and manual tests for each day, and the cut line.
+- [docs/TEST-LOG.md](docs/TEST-LOG.md): where manual test results are recorded.
+- [docs/mockup/index.html](docs/mockup/index.html): a static mockup of the proposed interface. Open it in a browser.
 - [supabase/schema.sql](supabase/schema.sql): draft database tables and access rules. Not applied, not tested.
 - [CLAUDE.md](CLAUDE.md): rules for the AI coding assistant working in this repository.
 

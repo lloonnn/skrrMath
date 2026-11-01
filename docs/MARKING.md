@@ -84,7 +84,17 @@ The "what it read" link opens the transcription so the student can fix a misread
 
 ## Per-line marks
 
-Version 1 puts one margin comment per block, with a tick or cross for the whole answer. Version 2 places marks beside each line. Version 2 needs the model to say where each handwritten line is on the image. That has not been tested. If it does not work, stay on version 1.
+Version 1 puts one margin comment per block, with a tick or cross for the whole answer. Version 2 places marks beside each line. Version 2 needs the model to say where each handwritten line is on the image.
+
+Tested on 2026-11-01 on one page (the owner's page 2): Gemini returned 17 boxes in `[ymin, xmin, ymax, xmax]` on a 0 to 1000 scale, one per handwritten line, in order, and every box sat on the right line (see `img/locate-overlay-page2.png`). Small flaws: two boxes overlapped vertically where fractions were stacked, and one box clipped the right edge a little. So version 2 looks feasible. Add a margin of a few percent to each box, and test on more pages before relying on it.
+
+## Transcription must be literal
+
+On the same page, the line-locating call returned text in which the student's sign slip was silently corrected (the page says +3 ln, the returned text says -3 ln). The plain transcription call kept the sign as written. A marker that corrects the student while reading cannot find the student's mistake. Rules:
+- The transcription prompt says: copy exactly what is written, including errors. Never correct, simplify or complete anything.
+- Do not use the text returned by a locating call as the transcription for marking. Use the boxes only for position, and match each box to a line of the literal transcription.
+- Automated test with the mock model: a transcription that differs from the fixture's written line fails the pipeline check.
+- Manual test: page 2 must transcribe line 12 as `+3 ln|x|` and line 17 as `+ 8x^3` with the plus sign on the log term. Record pass or fail in `TEST-LOG.md` each time the prompt changes.
 
 ## Question types
 
@@ -109,6 +119,15 @@ Also test: a correct solution that uses different steps from the reference. It m
 ## Cost
 
 Up to four calls per marking when no verified answer exists if every step is separate (transcribe, solve twice, mark). Steps can be merged to cut calls. Measure on the usage page. The demo was about 0.01 per call, unit not confirmed.
+
+## Speed
+
+- The transcription step can use a low thinking level, because it only copies what it sees.
+- The solve and mark steps probably need more thinking to be accurate. Keep it higher there, and measure the time and the accuracy together.
+- Send images no larger than needed (longest side about 1600 px).
+- Show progress in the interface (reading, solving, marking), because a full marking may take longer than a single transcription.
+- Measured so far: the Replit test service took 24 s to transcribe the owner's page 2 before any changes. Replit Agent then lowered the thinking level and added image resizing, and reported 4.7 s to 2.3 s on a blank test image only. That is not a benchmark. Re-measured on 2026-11-01 with the real page 2 on the republished app: 5.3 s and 3.9 s (two calls). This is for the transcription step only. The solve and mark steps are not measured yet.
+- Gemini 3.8 Flash, as reported by Agent, supports a lowest level of LOW and cannot turn thinking off. Even at LOW it reported thinking tokens. Not verified by us.
 
 ## Limits
 

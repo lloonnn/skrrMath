@@ -11,3 +11,12 @@ build/
 replit.nix
 .upm/
 .cache/
+
+# Local notes for Claude Code in each folder. Read locally, not tracked in git.
+/web/README.md
+/marking-service/README.md
+/shared/README.md
+/fixtures/README.md
+/supabase/migrations/README.md
+/e2e/README.md
+/scripts/README.md

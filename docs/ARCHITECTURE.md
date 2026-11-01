@@ -59,6 +59,26 @@ sequenceDiagram
 - **Marking service.** A small separate app hosted on Replit, so that Replit AI Integrations can pay for the model calls. Claude Code builds it like the rest of the project. It receives the block image and answer region, the optional verified answer, and the course tags. Calls Gemini. Returns the marking result. The AI key never reaches the browser.
 - **Supabase.** Sign-in, private tables for notes, files in private storage, and the shared bank table.
 
+## Interface layout
+
+```mermaid
+flowchart LR
+  subgraph Sidebar["Left sidebar, from shadcn sidebar-08, light mode"]
+    Brand["skrrMath and New paper"]
+    Courses["Courses, then year, then paper"]
+    Notes["Blank notes"]
+    Foot["Settings, Help, signed-in user and sync status"]
+  end
+  subgraph Main["Main area, an inset card"]
+    Crumb["Breadcrumb and Export PDF"]
+    Page["Paper page with question blocks and margin marks"]
+    Tools["Tool bar: pen, text, eraser, undo, zoom"]
+  end
+  Sidebar --> Main
+```
+
+The sidebar tree comes from the papers table (course code, exam year, paper). The shadcn block is a starting point and its exact contents are unchecked. The static mockup is `docs/mockup/index.html`.
+
 ## Data
 
 Draft tables are in `supabase/schema.sql`. Summary:
