@@ -4,25 +4,51 @@ Everything here is proposed. Nothing has been built except a throwaway marking d
 
 ## Parts
 
+```mermaid
+flowchart TB
+  subgraph Browser["Browser on tablet or laptop"]
+    Canvas["Note canvas: pen, text, eraser, undo"]
+    Blocks["Question blocks and verified-answer areas"]
+    Pdf["PDF import and export"]
+    Marks["Marking layer and what it read"]
+  end
+  subgraph Supa["Supabase"]
+    Auth["Sign-in"]
+    DB["Tables"]
+    Store["Private file storage"]
+  end
+  subgraph Server["Marking service hosted on Replit"]
+    Mark["api mark: check sign-in, rate limit, call the model"]
+  end
+  Gemini["Gemini through Replit AI Integrations"]
+  Browser -->|"sign-in, notes, files, bank"| Supa
+  Browser -->|"mark request: image and context"| Mark
+  Mark -->|"verify the user"| Auth
+  Mark -->|"prompt and images"| Gemini
+  Gemini -->|"marking JSON"| Mark
+  Mark -->|"result"| Browser
 ```
- Browser (tablet or laptop)
- ┌──────────────────────────────────────────────┐
- │ React app                                    │
- │  - note canvas (pen, text, eraser, undo)     │
- │  - question blocks + verified-answer areas   │
- │  - PDF import (pdf.js) / PDF export          │
- │  - marking layer (red pen) + "what it read"  │
- └───────────────┬───────────────┬──────────────┘
-                 │               │
-        sign-in, notes,      mark request
-        files, bank          (image + context)
-                 │               │
-        ┌────────▼───────┐ ┌─────▼──────────────┐
-        │ Supabase       │ │ Server function     │
-        │ auth, tables,  │ │ holds the AI key,   │
-        │ storage        │ │ calls Gemini,       │
-        └────────────────┘ │ returns marking JSON│
-                           └─────────────────────┘
+
+## The model call
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant S as Marking service on Replit
+  participant A as Supabase Auth
+  participant R as Replit AI Integrations
+  participant G as Gemini
+  B->>S: POST api mark with image, tags, user token
+  S->>A: verify the token
+  A-->>S: user id
+  S->>S: rate limit and size check
+  S->>R: transcribe, solve, mark (model from GEMINI_MODEL)
+  R->>G: request billed to Replit credits
+  G-->>R: response
+  R-->>S: response
+  S->>S: check the JSON against the schema
+  S-->>B: marking result
+  B->>B: save to markings and draw the red-pen marks
 ```
 
 ## Parts in words
@@ -30,7 +56,7 @@ Everything here is proposed. Nothing has been built except a throwaway marking d
 - **Canvas.** An existing drawing library supplies pen, eraser, undo, zoom, scroll, text and image paste. Not chosen. Check licences and tablet feel.
 - **Question block.** A pasted crop or a box drawn on an imported PDF page. It carries course code, exam year and question number. The answer region is everything written below the block, up to the next block.
 - **Verified-answer area.** A second writing area on a block. Handwriting, a pasted image or typed text.
-- **Server function.** Receives the block image and answer region, the optional verified answer, and the course tags. Calls Gemini. Returns the marking result. The AI key never reaches the browser.
+- **Marking service.** A small separate app hosted on Replit, so that Replit AI Integrations can pay for the model calls. Claude Code builds it like the rest of the project. It receives the block image and answer region, the optional verified answer, and the course tags. Calls Gemini. Returns the marking result. The AI key never reaches the browser.
 - **Supabase.** Sign-in, private tables for notes, files in private storage, and the shared bank table.
 
 ## Data
@@ -74,7 +100,19 @@ Files: PDFs and pasted images go to private storage under the owner's id. The sh
 
 ## Hosting
 
-Replit or Vercel. Replit AI Integrations are billed to Replit credits and the docs describe them for Replit apps. Calls from an app on Vercel probably need your own Google AI Studio key. Not tested.
+The main app is built locally with Claude Code and its hosting is not decided. Only the marking service runs on Replit, because Replit AI Integrations are billed to Replit credits and the docs describe them for apps on Replit. Not tested: that a service deployed from a repository can use them, and how the main app proves to the service that a request is allowed (plan: the service verifies the Supabase sign-in token). If this does not work, run the same service anywhere with a Google AI Studio key.
+
+## Providers
+
+```mermaid
+flowchart TD
+  S["Marking service gets a request"] --> P{"AI_PROVIDER"}
+  P -->|"demo"| D["Saved example result for the sample question"]
+  P -->|"google"| K["Gemini with the user's GEMINI_API_KEY"]
+  P -->|"replit"| R["Gemini through Replit AI Integrations, owner only"]
+```
+
+The hosted prototype uses `demo`. Visitors can mark only the sample questions. Real use needs the user's own key.
 
 ## Cost and speed (not verified)
 
@@ -92,8 +130,8 @@ The Replit demo cost about 0.01 per marking call (unit assumed to be dollars). T
 ## Open decisions
 
 - Canvas library (tldraw or Excalidraw or other). Licence unchecked.
-- Replit or Vercel hosting.
-- Replit AI Integrations on this account, or a Google AI Studio key.
+- Where the main app is hosted (not Replit by default).
+- Whether Replit AI Integrations work for the marking service on the owner's account. The service must run without Replit by default (`AI_PROVIDER=google`).
 - Google sign-in, and whether the school uses Google accounts.
 - Store the PDF privately (option A) or re-import from the portal each time (option B). Option A planned.
 - Whether per-line marks are possible. Needs a test of Gemini locating handwriting lines.

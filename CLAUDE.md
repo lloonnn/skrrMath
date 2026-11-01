@@ -2,6 +2,10 @@
 
 A note-taking web app where a student writes past-year paper answers by hand and an AI marks them in the margin. Read README.md first. Details are in docs/.
 
+## Tools
+
+Claude Code builds this project locally. Replit is used only to run the model API, as a small marking service. Do not move the main app into Replit unless the owner asks. The marking service must also run without Replit, with `AI_PROVIDER=google` and a Google AI Studio key, so anyone who clones the repo can run it. Keep the Replit path behind the `AI_PROVIDER` setting. `AI_PROVIDER=demo` must never call an AI. It returns saved example results from a fixtures folder. Fixtures use the owner's own work or made-up questions, never text copied from the school's papers. The hosted prototype runs in demo mode.
+
 ## Status
 
 Planning stage. No code yet. Every tech choice is proposed. Ask before changing a decision in docs/.
@@ -25,6 +29,7 @@ Out: a general chatbot, shapes, lasso, handwriting-to-text, folders, templates, 
 - Private data (notes, papers, markings) is visible only to its owner. Use database access rules on every table. Test them with two accounts.
 - The shared bank stores tags and answers only. Never store paper images in a shared table.
 - Do not store or share the school's papers in a public place.
+- Diagrams are Mermaid code blocks. Never draw ASCII diagrams.
 - Write plain, direct, short sentences in docs and comments. State limits. Mark guesses as guesses.
 - Do not invent facts about libraries, prices or limits. Check the docs and say when something is unchecked.
 

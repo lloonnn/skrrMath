@@ -1,70 +1,89 @@
 # skrrMath
 
-A note-taking app for practising past-year exam papers by hand. You write your answer under a question, press "mark", and the AI marks it on the page like a teacher with a red pen. You never upload to a chatbot and scroll back to find the correction.
+A note-taking web app for practising past-year exam papers by hand, with AI marking on the page.
 
-Status: planning. No code yet. Every tech choice below is proposed, not final.
+Status: planning. No code yet. Built with Claude Code. Every technical choice below is proposed, not final.
 
-## The problem
+## Problem
 
-When I am preparing for final exams, I do past-year papers, then screenshot them or export them to PDF and send them to an AI to check my answers. The chat gets very long and I need to scroll back to find the corrected answer.
+When preparing for examinations, students practise with past-year papers. The usual routine is to work through a paper in a note, then take a screenshot or export a PDF and upload it to an AI chatbot to check the answers.
 
-## What it is
+This routine has two weaknesses.
 
-- A web app with a basic note canvas: pen, text box, eraser, undo, zoom and scroll.
-- Papers come from the school portal. You import a PDF, or paste a cropped screenshot of one question.
-- Each question becomes a **question block**. You write your answer below it by hand.
-- A **mark** button sends the block and your answer to the AI. The correction appears in the margin of your page, in red pen. It is saved with that paper.
-- Every mark carries an honest label. "Not verified" means the AI marked from its own reasoning. A verified answer, if one exists, is used instead and the label changes.
-- Each question has a **verified-answer area** where you can handwrite, paste an image, or type the correct answer.
-- Export the marked paper as a PDF.
-- Notes sync between a tablet and a laptop.
-- Stage two: a **shared course bank** of verified answers, keyed by course code, exam year and question number.
+1. **Chats become cluttered.** Students often upload several past papers into the same conversation. The corrections for one paper end up buried among the solutions to others, and finding a particular correction later means scrolling back through the whole chat.
+2. **Lecturers cannot mark everything.** As an examination approaches, many students ask their lecturers to check their answers. Lecturers do not have the time to mark the work of every student within such a short period.
 
-Subject for the first version: math (working steps and proofs). Handwritten code and theory questions come later.
+## Solution
 
-## What it is not
+skrrMath is a note-taking web app built for practising past-year papers. Students import a paper or paste a cropped question, write their answer by hand directly beneath it, and press "mark". The AI then marks the answer on the page in the way a teacher would: a tick or a cross in the margin, with a short comment beside the first mistake. The corrections are saved with the paper itself.
 
-- Not a general chatbot.
-- Not a full Notability or GoodNotes clone. No shapes, lasso, handwriting-to-text, folders or templates.
-- Not a source of official grades. The footer says it is a study aid.
+How this addresses the problems:
+
+- **No more upload and scroll.** Students write and mark in the same place. The correction stays beside the answer it belongs to, and each paper keeps its own corrections.
+- **Immediate feedback without waiting for a lecturer.** Students can check their work at any time. This eases the pressure on lecturers near an examination.
+- **Honest marking.** Every mark states how it was produced. "Not verified" means the AI marked from its own reasoning. When a verified answer exists, the AI marks against it and the label changes. The app is a study aid and does not replace a teacher.
+
+## Features
+
+First version (MVP):
+
+- A basic note canvas with a pen, text box, eraser, undo, zoom and scroll.
+- Import of a past-year paper as a PDF, or a pasted cropped screenshot of a single question.
+- Question blocks. Each question is a block, tagged with course code, exam year and question number, and the student writes the answer below it.
+- Marking in the margin, in red pen. The AI finds the first error, names the type of mistake, and marks later lines that follow from it as such. It also says whether the method was right.
+- A marking layer that can be hidden, so the student can redo a question.
+- A "what it read" view that shows how the AI transcribed the handwriting, so a misreading can be corrected.
+- A verified-answer area for each question, where the student can handwrite, paste an image or type the correct answer. Marking then uses it.
+- Export of the marked paper as a PDF.
+- Sign-in and cloud sync, so notes are the same on a tablet and a laptop.
+
+Second stage (planned, cut first if time runs short):
+
+- A shared course bank of verified answers, keyed by course code, exam year and question number. An answer is checked once and then reused by the whole course, with a trust level shown for each answer.
+
+The first subject is mathematics (worked steps and proofs). Handwritten code and theory questions come later.
+
+## Not included
+
+- A general chatbot.
+- A full note-app toolset such as shapes, lasso selection, handwriting-to-text, folders and templates.
+- Official grades. Marks are for practice only.
 
 ## Proposed stack
 
 | Part | Proposed |
 |---|---|
 | App | React and TypeScript web app |
-| Canvas | An existing library (tldraw or Excalidraw, not chosen, check licences) |
+| Canvas | An existing library (tldraw or Excalidraw, not chosen, licences unchecked) |
 | PDF import | pdf.js |
-| PDF export | Render pages to images, build with jsPDF or pdf-lib |
+| PDF export | Render pages to images, then build with jsPDF or pdf-lib |
 | Maths in comments | KaTeX |
-| AI | Gemini (a Flash-class model first), kept as one setting |
-| AI access | Replit AI Integrations if they work on the account, else a Google AI Studio key |
+| AI model | Gemini (a Flash-class model first), kept as one setting |
+| Model access | A small marking service with three modes. The hosted prototype runs in demo mode and returns saved example results, with no AI call. Real use needs the user's own key. In real use it calls Gemini with a Google AI Studio key, so anyone can run it. The owner can switch it to Replit AI Integrations (billed to Replit credits) on their own Replit app. |
 | Sign-in, database, files | Supabase |
-| Hosting | Replit, or Vercel (note: Replit credits probably do not pay for AI calls from Vercel) |
+| App hosting | Not decided |
 
-## Docs
+Claude Code builds the project. A hosted prototype shows example results only, and real marking requires your own Gemini API key. Replit is an optional way for the owner to run the model API. The project does not require Replit.
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): parts, data, flows, security.
-- [docs/MARKING.md](docs/MARKING.md): how the AI marks, the output format, test cases.
-- [docs/PLAN.md](docs/PLAN.md): the 8-day plan, the cut line, tests to run first.
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): components, data, flows and security.
+- [docs/MARKING.md](docs/MARKING.md): how the AI marks, the output format and test cases.
+- [docs/PLAN.md](docs/PLAN.md): the 8-day plan, the cut line and the tests to run first.
 - [supabase/schema.sql](supabase/schema.sql): draft database tables and access rules. Not applied, not tested.
-- [CLAUDE.md](CLAUDE.md): rules for AI coding helpers working in this repo.
+- [CLAUDE.md](CLAUDE.md): rules for the AI coding assistant working in this repository.
 
 ## Setup
 
-Not written yet. It will be added once the project is scaffolded.
+Not written yet. It will be added when the project is scaffolded.
 
 1. Copy `.env.example` to `.env` and fill in the values.
 2. Install and run commands: to be decided.
 
 ## Known risks
 
-- Reading messy handwriting is the biggest technical risk.
-- The AI can mark correct work wrong when the steps differ from the reference.
-- Overlap: Goodnotes Math Assist and apps such as AusGrader already read or mark handwritten work. The difference here is marking inside the note, per paper, with a verified answer.
-- Storing the school's past papers on a server may break the school's terms. Not checked.
-- Free-tier limits for Supabase and the AI are not checked.
-
-## Origin
-
-This came from a hackathon brief (GDG APU, Domain 2) that the author turned out not to be eligible for, so it continues as a personal project. Notes live in a separate knowledge-base repo.
+- Reading messy handwriting is the largest technical risk.
+- The AI can mark correct work as wrong when the steps differ from the reference.
+- Similar tools exist. Goodnotes Math Assist reads handwritten maths, and apps such as AusGrader mark handwritten papers. The difference here is marking inside the note, per paper, against a verified answer.
+- Storing the school's past papers on a server may breach the school's terms. This has not been checked.
+- Free-tier limits for Supabase and the AI have not been checked.
