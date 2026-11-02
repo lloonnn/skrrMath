@@ -149,7 +149,7 @@ The Replit demo cost about 0.01 per marking call (unit assumed to be dollars). T
 
 ## Open decisions
 
-- Canvas library (tldraw or Excalidraw or other). Licence unchecked.
+- ~~Canvas library~~ Closed 2026-11-02: Excalidraw (MIT), chosen by the owner. tldraw was rejected because its licence blocks production use.
 - Where the main app is hosted (not Replit by default).
 - Whether Replit AI Integrations work for the marking service on the owner's account. The service must run without Replit by default (`AI_PROVIDER=google`).
 - Google sign-in, and whether the school uses Google accounts.

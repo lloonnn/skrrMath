@@ -1,5 +1,7 @@
 # skrrMath
 
+Read `docs/STATUS.md` first. It says where the project is and what to do next. Update it at the end of every work session.
+
 A note-taking web app where a student writes past-year paper answers by hand and an AI marks them in the margin. Read README.md first. Details are in docs/.
 
 ## Tools

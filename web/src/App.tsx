@@ -6,6 +6,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { NoteCanvas } from "@/features/canvas/note-canvas"
 import { sampleCourses } from "@/features/papers/sample-papers"
 
 export function App() {
@@ -24,6 +25,9 @@ export function App() {
         <header className="flex h-12 shrink-0 items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
         </header>
+        <div className="min-h-0 flex-1">
+          <NoteCanvas />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

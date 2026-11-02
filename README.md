@@ -55,7 +55,7 @@ The first subject is mathematics (worked steps and proofs). Handwritten code and
 |---|---|
 | App | React and TypeScript web app |
 | Interface components | shadcn/ui, light mode. The left sidebar starts from the `sidebar-08` block, adapted to a course, year and paper tree. App name: skrrMath. |
-| Canvas | An existing library (tldraw or Excalidraw, not chosen, licences unchecked) |
+| Canvas | An existing library (Excalidraw, MIT licence) |
 | PDF import | pdf.js |
 | PDF export | Render pages to images, then build with jsPDF or pdf-lib |
 | Maths in comments | KaTeX |
@@ -92,7 +92,7 @@ skrrMath/
 │   ├── MARKING.md
 │   ├── PLAN.md
 │   ├── TEST-LOG.md
-│   ├── img/                  the owner's handwritten test pages
+│   ├── img/                  # handwritten test pages
 │   └── mockup/
 │       └── index.html
 ├── web/
