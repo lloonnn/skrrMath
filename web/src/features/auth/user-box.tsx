@@ -66,8 +66,8 @@ export function UserBox({ session }: { session: Session | null }) {
   if (!open) {
     return (
       <div className="flex flex-col gap-1 px-2 py-2">
-        <p className="text-xs text-muted-foreground">
-          Guest. Your notes stay in this browser. Sign in to save them online.
+        <p className="text-center text-xs text-muted-foreground">
+          Sign in to save them online.
         </p>
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
           Sign in

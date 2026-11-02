@@ -1,7 +1,13 @@
 import * as React from "react"
 
 import type { ActivePaper, SceneBlock } from "@shared/index.ts"
-import { QuestionSection } from "@/features/marking/question-section"
+import { Button } from "@/components/ui/button"
+import { markDemo } from "@/features/marking/demo-marking"
+import {
+  QuestionSection,
+  canMark,
+  type MarkState,
+} from "@/features/marking/question-section"
 
 // The marking panel beside the note. One section per pasted question image.
 // Closed means hidden, not removed, so the marks come back as they were.
@@ -21,6 +27,30 @@ export function MarkingMargin({
   signedIn: boolean
 }) {
   const [width, setWidth] = React.useState(DEFAULT_WIDTH)
+  // The marking state of each question, by its block id.
+  const [states, setStates] = React.useState<Record<string, MarkState>>({})
+  const stateOf = (id: string): MarkState => states[id] ?? { phase: "idle" }
+  const set = (id: string, s: MarkState) =>
+    setStates((all) => ({ ...all, [id]: s }))
+
+  async function markOne(id: string) {
+    set(id, { phase: "working" })
+    try {
+      set(id, { phase: "done", result: await markDemo() })
+    } catch {
+      set(id, { phase: "failed" })
+    }
+  }
+
+  // One after another, not all at once: real marking costs money and the service
+  // limits how many requests a user can send per minute.
+  const todo = blocks.filter(
+    (b) => canMark(b, paper, signedIn) && stateOf(b.id).phase !== "working"
+  )
+  const anyWorking = blocks.some((b) => stateOf(b.id).phase === "working")
+  async function markAll() {
+    for (const b of todo) await markOne(b.id)
+  }
 
   // Drag the left edge. Pointer events, so a finger or a pen works too.
   function startDrag(e: React.PointerEvent<HTMLDivElement>) {
@@ -68,12 +98,28 @@ export function MarkingMargin({
             here. Then write your answer below it.
           </p>
         )}
+        {blocks.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={markAll}
+              disabled={todo.length === 0 || anyWorking}
+            >
+              {anyWorking ? "Marking..." : "Mark all"}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {blocks.length} question{blocks.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
         {blocks.map((b) => (
           <QuestionSection
             key={b.id}
             block={b}
             paper={paper}
             signedIn={signedIn}
+            state={stateOf(b.id)}
+            onMark={() => markOne(b.id)}
           />
         ))}
         {blocks.length > 0 && (

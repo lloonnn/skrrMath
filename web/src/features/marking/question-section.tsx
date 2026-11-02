@@ -1,5 +1,3 @@
-import * as React from "react"
-
 import {
   lineMarks,
   marginView,
@@ -10,7 +8,6 @@ import {
 import {
   MARK_NEEDS_SIGN_IN,
   demoPageImage,
-  markDemo,
 } from "@/features/marking/demo-marking"
 import { Latex } from "@/features/marking/latex"
 import { Button } from "@/components/ui/button"
@@ -20,33 +17,40 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
-type State =
+export type MarkState =
   | { phase: "idle" }
   | { phase: "working" }
   | { phase: "done"; result: MarkingResult }
   | { phase: "failed" }
 
-// One pasted question: its tags, a Mark button, and the marks.
+// Can this question be marked now? Used by its own button and by Mark all.
+export function canMark(
+  block: SceneBlock,
+  paper: ActivePaper | null,
+  signedIn: boolean
+): boolean {
+  return (
+    paper !== null &&
+    !(MARK_NEEDS_SIGN_IN && !signedIn) &&
+    !block.region.overlaps
+  )
+}
+
+// One pasted question: its Mark button and the marks. The marking state lives in
+// the panel, so that Mark all can start every question.
 export function QuestionSection({
   block,
   paper,
   signedIn,
+  state,
+  onMark,
 }: {
   block: SceneBlock
   paper: ActivePaper | null
   signedIn: boolean
+  state: MarkState
+  onMark: () => void
 }) {
-  const [state, setState] = React.useState<State>({ phase: "idle" })
-
-  async function mark() {
-    setState({ phase: "working" })
-    try {
-      setState({ phase: "done", result: await markDemo() })
-    } catch {
-      setState({ phase: "failed" })
-    }
-  }
-
   const needsSignIn = MARK_NEEDS_SIGN_IN && !signedIn
   const result = state.phase === "done" ? state.result : null
   const view = result ? marginView(result) : null
@@ -71,12 +75,9 @@ export function QuestionSection({
       <div>
         <Button
           size="sm"
-          onClick={mark}
+          onClick={onMark}
           disabled={
-            !paper ||
-            needsSignIn ||
-            state.phase === "working" ||
-            block.region.overlaps
+            !canMark(block, paper, signedIn) || state.phase === "working"
           }
         >
           {state.phase === "working" ? "Marking..." : "Mark"}

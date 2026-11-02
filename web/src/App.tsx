@@ -66,7 +66,9 @@ export function App() {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={{ "--sidebar-width": "19rem" } as React.CSSProperties}
+    >
       <AppSidebar
         tree={tree}
         activeId={activePaper ? activeNoteId : null}

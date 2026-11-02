@@ -107,8 +107,9 @@ export function NavCourses({
   )
 
   const row =
-    "flex items-center gap-1 rounded-md py-0.5 pr-1 text-sm hover:bg-sidebar-accent pointer-coarse:min-h-11"
-  const rowMain = "flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+    "flex items-center gap-1 rounded-md py-0.5 pr-1 text-sm transition-colors hover:bg-foreground/10 active:bg-foreground/15 pointer-coarse:min-h-11"
+  const rowMain =
+    "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left"
 
   return (
     <SidebarGroup>
@@ -158,14 +159,15 @@ export function NavCourses({
                 onClick={() => toggle(course.id)}
                 aria-expanded={!collapsed.has(course.id)}
               >
-                <FolderIcon className="size-4 shrink-0" />
-                <span className="truncate">{course.code}</span>
                 <ChevronRightIcon
                   className={
-                    "ml-auto size-4 shrink-0 transition-transform " +
+                    "size-4 shrink-0 transition-transform " +
                     (collapsed.has(course.id) ? "" : "rotate-90")
                   }
                 />
+                <FolderIcon className="size-4 shrink-0" />
+                {/* A long name wraps onto a second line instead of being cut off. */}
+                <span className="min-w-0 break-words">{course.code}</span>
               </button>
               <Button
                 size="icon-xs"
@@ -213,7 +215,7 @@ export function NavCourses({
                     className={
                       row +
                       (year.id === activeId
-                        ? " bg-sidebar-accent font-medium"
+                        ? " bg-foreground/10 font-medium"
                         : "")
                     }
                   >
@@ -223,7 +225,7 @@ export function NavCourses({
                       onClick={() => onOpen(year.id)}
                     >
                       <FileTextIcon className="size-4 shrink-0" />
-                      <span className="truncate">{year.year}</span>
+                      <span className="min-w-0 break-words">{year.year}</span>
                     </button>
                     {optionsMenu(year.id, year.year)}
                   </div>
