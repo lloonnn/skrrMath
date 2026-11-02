@@ -4,6 +4,8 @@ import {
   type ActivePaper,
   type SceneBlock,
 } from "@shared/index.ts"
+import * as React from "react"
+
 import {
   MARK_MODE,
   MARK_NEEDS_SIGN_IN,
@@ -19,9 +21,19 @@ import {
 
 export type MarkState =
   | { phase: "idle" }
-  | { phase: "working" }
-  | ({ phase: "done" } & Marked)
+  | { phase: "working"; since: number; step?: string }
+  | ({ phase: "done"; strokes: number; at: string } & Marked)
   | { phase: "failed"; message: string }
+
+// Counts the seconds since marking started.
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = React.useState(() => Date.now())
+  React.useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+  return <>{Math.max(0, Math.round((now - since) / 1000))} s</>
+}
 
 // Can this question be marked now? Used by its own button and by Mark all.
 export function canMark(
@@ -101,9 +113,24 @@ export function QuestionSection({
         </p>
       )}
 
+      {state.phase === "working" && (
+        <p className="text-xs text-muted-foreground" role="status">
+          {state.step ?? "Starting..."} <Elapsed since={state.since} />
+        </p>
+      )}
+
       {state.phase === "failed" && (
         <p className="text-red-700">{state.message}</p>
       )}
+
+      {state.phase === "done" &&
+        MARK_MODE === "service" &&
+        state.strokes !== block.strokes && (
+          <p className="text-xs text-muted-foreground">
+            You changed your writing after this was marked. Press Mark to mark
+            it again.
+          </p>
+        )}
 
       {state.phase === "done" && result && view && (
         <>

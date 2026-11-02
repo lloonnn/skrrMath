@@ -30,6 +30,27 @@ async function markDemo(): Promise<Marked> {
   return { result: parsed.result, imageUrl: pageImage }
 }
 
+// What the service says it is doing, in words for the person.
+type Step = { step: string; n?: number; of?: number }
+function stepLabel(s: Step): string {
+  switch (s.step) {
+    case "reading":
+      return "Reading your writing..."
+    case "locating":
+      return "Finding the lines..."
+    case "solving":
+      return s.of && s.of > 1
+        ? `Solving the question (${s.n} of ${s.of})...`
+        : "Solving the question..."
+    case "comparing":
+      return "Comparing the two solutions..."
+    case "marking":
+      return "Marking line by line..."
+    default:
+      return "Working..."
+  }
+}
+
 function messageFor(status: number, fromService: string | undefined): string {
   if (status === 401) return "Your sign-in ran out. Sign out and in again."
   if (status === 413) return "The pictures are too big to send."
@@ -39,10 +60,50 @@ function messageFor(status: number, fromService: string | undefined): string {
   return fromService || `Marking failed (${status}).`
 }
 
+// Reads the service's reply line by line. Each line is one JSON object: a step, then
+// the result (or an error). If the service sent one plain JSON body instead, that works too.
+async function readReply(
+  res: Response,
+  onStep?: (label: string) => void
+): Promise<unknown> {
+  if (!(res.headers.get("content-type") ?? "").includes("ndjson") || !res.body)
+    return res.json()
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let result: unknown
+  const handle = (line: string) => {
+    if (!line.trim()) return
+    const msg = JSON.parse(line) as {
+      type?: string
+      result?: unknown
+      status?: number
+      error?: string
+    } & Step
+    if (msg.type === "step") onStep?.(stepLabel(msg))
+    else if (msg.type === "result") result = msg.result
+    else if (msg.type === "error")
+      throw new MarkError(messageFor(msg.status ?? 500, msg.error))
+  }
+  for (;;) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value, { stream: !done })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+    lines.forEach(handle)
+    if (done) break
+  }
+  handle(buffer)
+  if (result === undefined)
+    throw new MarkError("The marking service stopped before it finished.")
+  return result
+}
+
 async function markViaService(
   scene: Scene,
   block: SceneBlock,
-  paper: ActivePaper
+  paper: ActivePaper,
+  onStep?: (label: string) => void
 ): Promise<Marked> {
   const token = (await supabase?.auth.getSession())?.data.session?.access_token
   if (!token) throw new MarkError("Sign in to mark.")
@@ -59,6 +120,8 @@ async function markViaService(
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        // Ask the service to report each step as it works (see readReply).
+        accept: "application/x-ndjson",
       },
       body: JSON.stringify({
         blockImage: question,
@@ -83,7 +146,7 @@ async function markViaService(
   }
   // The service validates its reply. It is checked again here, because this is the
   // last step before it is drawn on your page.
-  const parsed = parseMarkingResult(await res.json())
+  const parsed = parseMarkingResult(await readReply(res, onStep))
   if (!parsed.ok)
     throw new MarkError("The marking service sent something unexpected.")
   return {
@@ -95,9 +158,10 @@ async function markViaService(
 export function markBlock(
   scene: Scene | null,
   block: SceneBlock,
-  paper: ActivePaper
+  paper: ActivePaper,
+  onStep?: (label: string) => void
 ): Promise<Marked> {
   if (MARK_MODE === "demo") return markDemo()
   if (!scene) return Promise.reject(new MarkError("Open the note first."))
-  return markViaService(scene, block, paper)
+  return markViaService(scene, block, paper, onStep)
 }

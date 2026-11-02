@@ -110,6 +110,60 @@ describe("POST /api/mark", () => {
   })
 })
 
+describe("streaming progress", () => {
+  const stream = async (engine: Parameters<typeof buildServer>[0]["engine"], accept?: string) => {
+    const config = loadConfig(baseEnv)
+    const server = buildServer({ config, engine, verify: async () => ({ userId: "u" }) })
+    await new Promise<void>((r) => server.listen(0, r))
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/mark`
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { authorization: "Bearer t", "content-type": "application/json", ...(accept ? { accept } : {}) },
+      body: JSON.stringify(body),
+    })
+    const text = await res.text()
+    server.close()
+    return { res, text }
+  }
+  const demo = createDemoEngine()
+  const stepsEngine = {
+    mark: async (r: never, onStep?: (s: { step: "reading" | "marking" }) => void) => {
+      onStep?.({ step: "reading" })
+      onStep?.({ step: "marking" })
+      return demo.mark(r)
+    },
+  } as never
+
+  it("sends each step as a line, then the result", async () => {
+    const { res, text } = await stream(stepsEngine, "application/x-ndjson")
+    expect(res.headers.get("content-type")).toBe("application/x-ndjson")
+    const lines = text.trim().split("\n").map((l) => JSON.parse(l))
+    expect(lines.map((l) => l.type)).toEqual(["step", "step", "result"])
+    expect(lines[0].step).toBe("reading")
+    expect(lines[2].result.status).toBeDefined()
+  })
+  it("sends a failure as an error line", async () => {
+    const failing = { mark: async () => { throw new ModelUnavailableError(429, "check quota") } } as never
+    const { text } = await stream(failing, "application/x-ndjson")
+    const last = JSON.parse(text.trim().split("\n").pop()!)
+    expect(last).toMatchObject({ type: "error", status: 502, error: "check quota" })
+  })
+  it("still checks sign-in before streaming", async () => {
+    const config = loadConfig(baseEnv)
+    const server = buildServer({ config, engine: demo, verify: async () => null })
+    await new Promise<void>((r) => server.listen(0, r))
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/mark`
+    const res = await fetch(url, { method: "POST", headers: { accept: "application/x-ndjson", "content-type": "application/json" }, body: JSON.stringify(body) })
+    server.close()
+    expect(res.status).toBe(401)
+  })
+  it("without the header the reply is one JSON body, as before", async () => {
+    const { res, text } = await stream(stepsEngine)
+    expect(res.headers.get("content-type")).toBe("application/json")
+    expect(JSON.parse(text).status).toBeDefined()
+  })
+})
+
 describe("model unavailable", () => {
   it("is a 502 with a clear message, not an unreadable result", async () => {
     const config = loadConfig(baseEnv)

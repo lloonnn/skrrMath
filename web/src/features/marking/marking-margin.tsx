@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button"
 import { MARK_MODE, markBlock } from "@/features/marking/mark-service"
 import type { Scene } from "@/features/canvas/note-canvas"
 import {
+  isKeepable,
+  marksSignature,
+  type SavedMarks,
+} from "@/features/marking/saved-marks"
+import {
   QuestionSection,
   canMark,
   type MarkState,
@@ -16,54 +21,25 @@ const MIN_WIDTH = 280
 const MAX_WIDTH = 760
 const DEFAULT_WIDTH = 360
 
-export function MarkingMargin({
-  open,
-  blocks,
-  paper,
-  signedIn,
-  getScene,
-}: {
+type Props = {
   open: boolean
   blocks: SceneBlock[]
   paper: ActivePaper | null
   signedIn: boolean
   // The note as it is now, read when Mark is pressed.
   getScene: () => Scene | null
-}) {
+  // The marks that were saved with this note.
+  initialMarks: SavedMarks
+  // Tells the note when a result is added or redone, so it can be saved.
+  onMarks: (marks: SavedMarks) => void
+}
+
+// The shell: the resizable box. It stays when you switch notes, so the width stays.
+// "noteKey" changes when another note opens, or when its saved marks have loaded,
+// and then the body starts again from those marks.
+export function MarkingMargin(props: Props & { noteKey: string }) {
+  const { open, noteKey, ...rest } = props
   const [width, setWidth] = React.useState(DEFAULT_WIDTH)
-  // The marking state of each question, by its block id.
-  const [states, setStates] = React.useState<Record<string, MarkState>>({})
-  const stateOf = (id: string): MarkState => states[id] ?? { phase: "idle" }
-  const set = (id: string, s: MarkState) =>
-    setStates((all) => ({ ...all, [id]: s }))
-
-  async function markOne(id: string) {
-    const block = blocks.find((b) => b.id === id)
-    if (!block || !paper) return
-    set(id, { phase: "working" })
-    try {
-      const marked = await markBlock(getScene(), block, paper)
-      set(id, { phase: "done", ...marked })
-    } catch (e) {
-      set(id, {
-        phase: "failed",
-        message:
-          e instanceof Error && e.message
-            ? e.message
-            : "Marking failed. Nothing was changed.",
-      })
-    }
-  }
-
-  // One after another, not all at once: real marking costs money and the service
-  // limits how many requests a user can send per minute.
-  const todo = blocks.filter(
-    (b) => canMark(b, paper, signedIn) && stateOf(b.id).phase !== "working"
-  )
-  const anyWorking = blocks.some((b) => stateOf(b.id).phase === "working")
-  async function markAll() {
-    for (const b of todo) await markOne(b.id)
-  }
 
   // Drag the left edge. Pointer events, so a finger or a pen works too.
   function startDrag(e: React.PointerEvent<HTMLDivElement>) {
@@ -105,43 +81,126 @@ export function MarkingMargin({
         <div className="h-full w-px bg-border group-hover:w-0.5 group-active:w-0.5" />
       </div>
       <aside className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto border-l bg-background p-4 text-sm">
-        {blocks.length === 0 && (
-          <p className="text-muted-foreground">
-            Paste a cropped question image onto the canvas (Ctrl+V). It shows up
-            here. Then write your answer below it.
-          </p>
-        )}
-        {blocks.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={markAll}
-              disabled={todo.length === 0 || anyWorking}
-            >
-              {anyWorking ? "Marking..." : "Mark all"}
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              {blocks.length} question{blocks.length === 1 ? "" : "s"}
-            </span>
-          </div>
-        )}
-        {blocks.map((b) => (
-          <QuestionSection
-            key={b.id}
-            block={b}
-            paper={paper}
-            signedIn={signedIn}
-            state={stateOf(b.id)}
-            onMark={() => markOne(b.id)}
-          />
-        ))}
-        {blocks.length > 0 && MARK_MODE === "demo" && (
-          <p className="text-xs text-muted-foreground">
-            Demo: Mark shows a saved example page, not your writing. Nothing is
-            sent to an AI.
-          </p>
-        )}
+        <MarkingBody key={noteKey} {...rest} />
       </aside>
     </div>
+  )
+}
+
+function MarkingBody({
+  blocks,
+  paper,
+  signedIn,
+  getScene,
+  initialMarks,
+  onMarks,
+}: Omit<Props, "open">) {
+  // The marking state of each question, by its block id. It starts from the saved marks.
+  const [states, setStates] = React.useState<Record<string, MarkState>>(() =>
+    Object.fromEntries(
+      Object.entries(initialMarks).map(([id, m]) => [
+        id,
+        { phase: "done", ...m } satisfies MarkState,
+      ])
+    )
+  )
+  const stateOf = (id: string): MarkState => states[id] ?? { phase: "idle" }
+  const set = (id: string, s: MarkState) =>
+    setStates((all) => ({ ...all, [id]: s }))
+
+  // Tell the note about the real results, so they are saved with it. Only when they
+  // change: the first call just repeats what was loaded.
+  const lastSent = React.useRef(marksSignature(initialMarks))
+  React.useEffect(() => {
+    const marks: SavedMarks = {}
+    for (const [id, s] of Object.entries(states))
+      if (s.phase === "done" && isKeepable(s))
+        marks[id] = {
+          result: s.result,
+          imageUrl: s.imageUrl,
+          strokes: s.strokes,
+          at: s.at,
+        }
+    const sig = marksSignature(marks)
+    if (sig === lastSent.current) return
+    lastSent.current = sig
+    onMarks(marks)
+  }, [states, onMarks])
+
+  async function markOne(id: string) {
+    const block = blocks.find((b) => b.id === id)
+    if (!block || !paper) return
+    const since = Date.now()
+    set(id, { phase: "working", since })
+    try {
+      const marked = await markBlock(getScene(), block, paper, (step) =>
+        set(id, { phase: "working", since, step })
+      )
+      set(id, {
+        phase: "done",
+        ...marked,
+        strokes: block.strokes,
+        at: new Date().toISOString(),
+      })
+    } catch (e) {
+      set(id, {
+        phase: "failed",
+        message:
+          e instanceof Error && e.message
+            ? e.message
+            : "Marking failed. Nothing was changed.",
+      })
+    }
+  }
+
+  // One after another, not all at once: real marking costs money and the service
+  // limits how many requests a user can send per minute.
+  const todo = blocks.filter(
+    (b) => canMark(b, paper, signedIn) && stateOf(b.id).phase !== "working"
+  )
+  const anyWorking = blocks.some((b) => stateOf(b.id).phase === "working")
+  async function markAll() {
+    for (const b of todo) await markOne(b.id)
+  }
+
+  return (
+    <>
+      {blocks.length === 0 && (
+        <p className="text-muted-foreground">
+          Paste a cropped question image onto the canvas (Ctrl+V). It shows up
+          here. Then write your answer below it.
+        </p>
+      )}
+      {blocks.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={markAll}
+            disabled={todo.length === 0 || anyWorking}
+          >
+            {anyWorking ? "Marking..." : "Mark all"}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {blocks.length} question{blocks.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      )}
+      {blocks.map((b) => (
+        <QuestionSection
+          key={b.id}
+          block={b}
+          paper={paper}
+          signedIn={signedIn}
+          state={stateOf(b.id)}
+          onMark={() => markOne(b.id)}
+        />
+      ))}
+      {blocks.length > 0 && MARK_MODE === "demo" && (
+        <p className="text-xs text-muted-foreground">
+          Demo: Mark shows a saved example page, not your writing. Nothing is
+          sent to an AI.
+        </p>
+      )}
+    </>
   )
 }

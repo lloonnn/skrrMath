@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
 import { ModelUnavailableError, type ModelCall, type ModelClient } from "../providers/types.ts"
-import type { Engine, MarkRequest } from "../types.ts"
+import type { Engine, MarkRequest, ProgressStep } from "../types.ts"
 import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 import {
   assemble,
@@ -55,17 +55,19 @@ async function callJson<T>(client: ModelClient, call: ModelCall, schema: z.ZodTy
 export type PipelineOptions = { solveRuns: number; model: string }
 
 export function createModelEngine(client: ModelClient, opts: PipelineOptions): Engine {
-  return { mark: (req) => markWithModel(client, req, opts) }
+  return { mark: (req, onStep) => markWithModel(client, req, opts, onStep) }
 }
 
 export async function markWithModel(
   client: ModelClient,
   req: MarkRequest,
-  opts: PipelineOptions
+  opts: PipelineOptions,
+  onStep: (s: ProgressStep) => void = () => {}
 ): Promise<MarkingResult> {
   const { model } = opts
 
   // 1. Transcribe literally. Do not mark yet.
+  onStep({ step: "reading" })
   const t = await callJson<Transcription>(
     client,
     {
@@ -78,6 +80,7 @@ export async function markWithModel(
   )
   if (!t || t.lines.length === 0) return unreadableResult(model, t?.question_restated ?? "")
 
+  onStep({ step: "locating" })
   // 1b. Locate the lines, for position only. A failure here is not fatal:
   // the result then has no boxes and the margin note is used.
   const located = await callJson(
@@ -103,6 +106,7 @@ export async function markWithModel(
     source = "ai_solved"
     const answers: string[] = []
     for (let i = 0; i < opts.solveRuns; i++) {
+      onStep({ step: "solving", n: i + 1, of: opts.solveRuns })
       const s = await callJson(
         client,
         { system: SOLVE_SYSTEM, prompt: "Solve this question.", images: [req.blockImage], thinking: "high" },
@@ -115,6 +119,7 @@ export async function markWithModel(
     // Same maths can be written many ways. When the text differs, ask once.
     // If that check fails or is unsure, the answers count as different.
     if (agree === false && answers.length >= 2 && answers.length === opts.solveRuns) {
+      onStep({ step: "comparing" })
       const e = await callJson(
         client,
         { system: EQUIV_SYSTEM, prompt: `Answers:\n${answers.join("\n")}`, images: [req.blockImage], thinking: "high" },
@@ -125,6 +130,7 @@ export async function markWithModel(
     referenceText = `AI solutions (not verified): ${answers.join(" | ")}`
   }
 
+  onStep({ step: "marking" })
   // 3. Check the lines and mark. The student's lines are passed as copied.
   const m = await callJson<MarkOutput>(
     client,

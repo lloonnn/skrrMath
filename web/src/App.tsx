@@ -20,6 +20,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { MarkingMargin } from "@/features/marking/marking-margin"
+import type { SavedMarks } from "@/features/marking/saved-marks"
 import { NoteCanvas, type Scene } from "@/features/canvas/note-canvas"
 import { usePaperTree } from "@/features/papers/use-paper-tree"
 import { useSession } from "@/features/auth/use-session"
@@ -69,6 +70,14 @@ export function App() {
   const [blocks, setBlocks] = React.useState<SceneBlock[]>([])
   // The note as it is now. Read when Mark is pressed, so it is a ref, not state.
   const latestScene = React.useRef<Scene | null>(null)
+  // The marking results of the open note. They are saved with its writing.
+  const latestMarks = React.useRef<{
+    noteId: string | null
+    marks: SavedMarks
+  }>({
+    noteId: null,
+    marks: {},
+  })
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null)
 
   const activePaper = findPaper(tree, activeNoteId)
@@ -76,6 +85,34 @@ export function App() {
   const cloudNote = useCloudNote(signedIn ? userId : null, activeNoteId)
   const guestNote = useGuestNote(userId === null, activeNoteId)
   const note = signedIn ? cloudNote : guestNote
+
+  // The note as it should be saved: its writing plus the marks of questions that still
+  // exist (a mark whose question image was deleted is dropped).
+  function withMarks(scene: Scene, noteId: string): Scene {
+    if (latestMarks.current.noteId !== noteId)
+      latestMarks.current = { noteId, marks: note.initial?.marks ?? {} }
+    const live = new Set(
+      scene.elements
+        .filter((e) => !e.isDeleted && e.type === "image")
+        .map((e) => e.id)
+    )
+    const marks = Object.fromEntries(
+      Object.entries(latestMarks.current.marks).filter(([id]) => live.has(id))
+    )
+    return { ...scene, marks }
+  }
+
+  // A question was marked or re-marked: save it with the note.
+  function onMarks(marks: SavedMarks) {
+    if (!activeNoteId) return
+    latestMarks.current = { noteId: activeNoteId, marks }
+    const base =
+      latestScene.current ?? (note.initial ? { ...note.initial } : null)
+    if (!base) return
+    const full = withMarks(base, activeNoteId)
+    latestScene.current = full
+    note.onScene(full)
+  }
 
   // Write a list change to the account. If it fails, say so and reload the true list.
   function toCloud(job: () => Promise<void>) {
@@ -233,8 +270,9 @@ export function App() {
                     key={activeNoteId}
                     initial={note.initial}
                     onScene={(scene) => {
-                      latestScene.current = scene
-                      note.onScene(scene)
+                      const full = withMarks(scene, activeNoteId)
+                      latestScene.current = full
+                      note.onScene(full)
                     }}
                     onBlocks={setBlocks}
                   />
@@ -260,6 +298,9 @@ export function App() {
             paper={activePaper}
             signedIn={session !== null}
             getScene={() => latestScene.current}
+            noteKey={`${activeNoteId ?? "none"}:${note.ready ? "ready" : "loading"}`}
+            initialMarks={note.initial?.marks ?? {}}
+            onMarks={onMarks}
           />
         </div>
       </SidebarInset>

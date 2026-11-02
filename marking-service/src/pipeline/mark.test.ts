@@ -57,6 +57,33 @@ const okLines = [ml(1, "ok"), ml(2, "error", "Sign slip"), ml(3, "follows_from_e
 const locateFor = (n: number) =>
   JSON.stringify(Array.from({ length: n }, (_, i) => ({ text: `l${i + 1}`, box_2d: [i * 200 + 50, 100, i * 200 + 150, 900] })))
 
+describe("progress steps", () => {
+  const steps = async (script: Parameters<typeof mock>[0], r: Partial<MarkRequest> = {}) => {
+    const { client } = mock(script)
+    const seen: string[] = []
+    await markWithModel(client, req(r), opts, (s) => seen.push(s.n ? `${s.step} ${s.n}/${s.of}` : s.step))
+    return seen
+  }
+  it("reports each step in order when the AI solves the question", async () => {
+    expect(await steps({ transcribe: [transcription()], solve: [solve("x=5"), solve("x=5")], mark: [markOut(okLines)] })).toEqual([
+      "reading", "locating", "solving 1/2", "solving 2/2", "marking",
+    ])
+  })
+  it("adds a comparing step only when the two answers are written differently", async () => {
+    const seen = await steps({ transcribe: [transcription()], solve: [solve("x=5"), solve("x = five")], equiv: [JSON.stringify({ equivalent: true })], mark: [markOut(okLines)] })
+    expect(seen).toEqual(["reading", "locating", "solving 1/2", "solving 2/2", "comparing", "marking"])
+  })
+  it("skips solving when a verified answer is given", async () => {
+    expect(await steps({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] }, { verifiedAnswer: { kind: "text", text: "x = 5" } })).toEqual([
+      "reading", "locating", "marking",
+    ])
+  })
+  it("works without a listener", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    await expect(markWithModel(client, req(), opts)).resolves.toMatchObject({ status: "marked" })
+  })
+})
+
 describe("markWithModel", () => {
   it("puts a padded box on each line when the counts match", async () => {
     const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)], locate: [locateFor(4)] })

@@ -2,6 +2,7 @@ import * as React from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
 import "@excalidraw/excalidraw/index.css"
 import type { ExcalidrawProps } from "@excalidraw/excalidraw/types"
+import type { SavedMarks } from "@/features/marking/saved-marks"
 
 import { blocksFromScene, type SceneBlock } from "@shared/index.ts"
 
@@ -9,6 +10,8 @@ type OnChange = NonNullable<ExcalidrawProps["onChange"]>
 export type Scene = {
   elements: Parameters<OnChange>[0]
   files: Parameters<OnChange>[2]
+  // The marking results of this note's questions, kept and saved with the writing.
+  marks?: SavedMarks
 }
 
 // The note canvas for one paper. Strokes stay in Excalidraw's own scene.

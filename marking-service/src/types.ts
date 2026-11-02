@@ -24,5 +24,15 @@ export const markRequestSchema = z.strictObject({
 })
 export type MarkRequest = z.infer<typeof markRequestSchema>
 
+// What the pipeline is doing now. Sent to the app so it can show progress.
+export type ProgressStep = {
+  step: "reading" | "locating" | "solving" | "comparing" | "marking"
+  // For solving: which run, out of how many
+  n?: number
+  of?: number
+}
+
 // One thing that can mark. The demo engine and the model engine both fit.
-export type Engine = { mark(req: MarkRequest): Promise<MarkingResult> }
+export type Engine = {
+  mark(req: MarkRequest, onStep?: (s: ProgressStep) => void): Promise<MarkingResult>
+}

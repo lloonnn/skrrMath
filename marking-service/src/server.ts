@@ -39,13 +39,14 @@ async function readBody(req: IncomingMessage, max: number): Promise<string> {
 export function buildServer({ config, engine, verify, now }: Deps): Server {
   const limiter = createRateLimiter(config.ratePerMinute, now)
 
+  const cors = {
+    "access-control-allow-origin": config.allowedOrigin,
+    "access-control-allow-headers": "authorization, content-type, accept",
+    "access-control-allow-methods": "POST, OPTIONS",
+  }
+
   const send = (res: ServerResponse, status: number, body: unknown) => {
-    res.writeHead(status, {
-      "content-type": "application/json",
-      "access-control-allow-origin": config.allowedOrigin,
-      "access-control-allow-headers": "authorization, content-type",
-      "access-control-allow-methods": "POST, OPTIONS",
-    })
+    res.writeHead(status, { "content-type": "application/json", ...cors })
     res.end(JSON.stringify(body))
   }
 
@@ -73,6 +74,34 @@ export function buildServer({ config, engine, verify, now }: Deps): Server {
       }
       const parsed = markRequestSchema.safeParse(json)
       if (!parsed.success) throw new HttpError(422, "request has the wrong shape or file type")
+
+      // The app can ask to hear each step as it happens (Accept: application/x-ndjson):
+      // one JSON object per line, ending with the result or an error. Everything above
+      // (sign-in, limits, shape) has already been checked, so those errors keep their
+      // normal status codes. Without that header the reply is one JSON body, as before.
+      if ((req.headers.accept ?? "").includes("application/x-ndjson")) {
+        res.writeHead(200, {
+          "content-type": "application/x-ndjson",
+          "cache-control": "no-store",
+          "x-accel-buffering": "no",
+          ...cors,
+        })
+        const line = (o: unknown) => res.write(JSON.stringify(o) + "\n")
+        try {
+          const result = await engine.mark(parsed.data, (step) => line({ type: "step", ...step }))
+          line({ type: "result", result })
+        } catch (e) {
+          if (e instanceof ModelUnavailableError) {
+            console.error("model unavailable:", e.status)
+            line({ type: "error", status: 502, error: e.message })
+          } else {
+            console.error("mark failed:", e instanceof Error ? e.name : "unknown error")
+            line({ type: "error", status: 500, error: "marking failed" })
+          }
+        }
+        res.end()
+        return
+      }
 
       send(res, 200, await engine.mark(parsed.data))
     } catch (e) {
