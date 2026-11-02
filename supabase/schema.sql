@@ -1,59 +1,17 @@
--- DRAFT. Not applied. Not tested. Review every policy and test with two accounts before use.
--- Names and columns may change.
+-- DRAFT of the shared bank (stage two). NOT applied.
+-- The private tables (courses, years, papers, pages, question_blocks, markings) moved to
+-- supabase/migrations/0001_private_tables.sql, which is applied.
+-- Problem to solve before the bank is built: names are now free text, so two students may
+-- write "Calculus II" and "MATH201" for one course. Bank lookups need a shared course code.
 
 create extension if not exists "pgcrypto";
-
--- Private per-user data ------------------------------------------------------
-
-create table papers (
-  id uuid primary key default gen_random_uuid(),
-  owner uuid not null references auth.users (id) on delete cascade,
-  title text not null,
-  course_code text,
-  exam_year int,
-  file_path text,                 -- path in private storage, under the owner's id
-  created_at timestamptz not null default now()
-);
-
-create table pages (
-  id uuid primary key default gen_random_uuid(),
-  owner uuid not null references auth.users (id) on delete cascade,
-  paper_id uuid references papers (id) on delete cascade,  -- null for a blank note
-  page_index int not null default 0,
-  strokes jsonb not null default '{}'::jsonb,              -- canvas data
-  updated_at timestamptz not null default now()
-);
-
-create table question_blocks (
-  id uuid primary key default gen_random_uuid(),
-  owner uuid not null references auth.users (id) on delete cascade,
-  page_id uuid not null references pages (id) on delete cascade,
-  course_code text,
-  exam_year int,
-  question_no text,
-  x real, y real, w real, h real,                           -- block box on the page
-  question_image_path text,                                 -- private storage
-  own_reference jsonb,                                      -- user's verified answer (text, image path or strokes)
-  created_at timestamptz not null default now()
-);
-
-create table markings (
-  id uuid primary key default gen_random_uuid(),
-  owner uuid not null references auth.users (id) on delete cascade,
-  block_id uuid not null references question_blocks (id) on delete cascade,
-  status text not null check (status in ('marked', 'unsure', 'unreadable')),
-  reference_source text not null check (reference_source in ('verified_bank', 'verified_user', 'ai_solved')),
-  result jsonb not null,                                    -- see docs/MARKING.md
-  model text,
-  created_at timestamptz not null default now()
-);
 
 -- Shared bank (stage two). Tags and answers only. No paper images. ------------
 
 create table bank_answers (
   id uuid primary key default gen_random_uuid(),
   course_code text not null,
-  exam_year int not null,
+  exam_year text not null,
   question_no text not null,
   answer_text text,
   answer_image_path text,                                   -- the answer only, not the paper
@@ -79,21 +37,12 @@ create table bank_reports (
   created_at timestamptz not null default now()
 );
 
--- Access rules ----------------------------------------------------------------
+-- Access rules (draft) ---------------------------------------------
 
-alter table papers enable row level security;
-alter table pages enable row level security;
-alter table question_blocks enable row level security;
-alter table markings enable row level security;
 alter table bank_answers enable row level security;
 alter table bank_confirmations enable row level security;
 alter table bank_reports enable row level security;
 
--- Private tables: the owner can do everything with their own rows.
-create policy papers_owner on papers for all using (owner = auth.uid()) with check (owner = auth.uid());
-create policy pages_owner on pages for all using (owner = auth.uid()) with check (owner = auth.uid());
-create policy blocks_owner on question_blocks for all using (owner = auth.uid()) with check (owner = auth.uid());
-create policy markings_owner on markings for all using (owner = auth.uid()) with check (owner = auth.uid());
 
 -- Bank: any signed-in user reads. Only the author adds, edits or deletes their own answer.
 create policy bank_read on bank_answers for select using (auth.uid() is not null);

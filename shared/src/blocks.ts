@@ -44,3 +44,49 @@ export function normaliseCourseCode(input: string): string | null {
   const code = input.trim().toUpperCase().replace(/[\s\-_]+/g, "")
   return /^[A-Z]{1,8}[0-9]{1,5}[A-Z]?$/.test(code) ? code : null
 }
+
+// ---- From the canvas to question blocks ----
+// A pasted question image on the canvas is a block. The handwriting below it,
+// down to the next image, is its answer. Only what is needed from the canvas is
+// read, so this does not depend on the drawing library.
+
+export type SceneElement = {
+  id: string
+  type: string
+  x: number
+  y: number
+  width: number
+  height: number
+  isDeleted?: boolean
+}
+
+export type SceneBlock = {
+  id: string
+  // 1, 2, 3 from the top of the canvas
+  number: number
+  region: Region
+  // Pen strokes whose middle sits inside the answer region
+  strokes: number
+}
+
+// The canvas has no page edges, so one very tall page is used.
+const CANVAS_PAGE: Page = { page: 1, width: 1e9, height: 1e9 }
+
+export function blocksFromScene(elements: readonly SceneElement[]): SceneBlock[] {
+  const live = elements.filter((e) => !e.isDeleted)
+  const images = live
+    .filter((e) => e.type === "image")
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+  const blocks: Block[] = images.map((e) => ({ id: e.id, page: 1, x: e.x, y: e.y, width: e.width, height: e.height }))
+  const strokes = live.filter((e) => e.type === "freedraw")
+  return blocks.map((b, i) => {
+    const region = answerRegion(b, blocks, [CANVAS_PAGE])
+    const count = region.overlaps
+      ? 0
+      : strokes.filter((s) => {
+          const mid = s.y + s.height / 2
+          return mid >= region.y && mid < region.y + region.height
+        }).length
+    return { id: b.id, number: i + 1, region, strokes: count }
+  })
+}

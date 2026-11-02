@@ -69,3 +69,41 @@ describe("normaliseCourseCode", () => {
   it.each(["", "   ", "201", "MATH", "MATH 201 extra", "M@TH201", "数学201"])("rejects %j", (s) =>
     expect(normaliseCourseCode(s)).toBeNull())
 })
+
+import { blocksFromScene, type SceneElement } from "./blocks.ts"
+
+const el = (id: string, type: string, y: number, height = 50, extra: Partial<SceneElement> = {}): SceneElement => ({
+  id, type, x: 0, y, width: 100, height, ...extra,
+})
+
+describe("blocksFromScene", () => {
+  it("an empty canvas has no blocks", () => expect(blocksFromScene([])).toEqual([]))
+  it("ignores shapes and text", () =>
+    expect(blocksFromScene([el("r", "rectangle", 0), el("t", "text", 10)])).toEqual([]))
+  it("one image: its strokes below count, strokes above do not", () => {
+    const r = blocksFromScene([el("q", "image", 100, 80), el("s1", "freedraw", 200, 20), el("s2", "freedraw", 400, 20), el("above", "freedraw", 10, 20)])
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ id: "q", number: 1, strokes: 2 })
+  })
+  it("two images: strokes go to the nearest question above them", () => {
+    const r = blocksFromScene([
+      el("q1", "image", 0, 50), el("a", "freedraw", 100, 20), el("b", "freedraw", 150, 20),
+      el("q2", "image", 300, 50), el("c", "freedraw", 400, 20),
+    ])
+    expect(r.map((b) => [b.id, b.number, b.strokes])).toEqual([["q1", 1, 2], ["q2", 2, 1]])
+  })
+  it("numbers images by position, not by the order of the list", () => {
+    const r = blocksFromScene([el("low", "image", 500), el("high", "image", 0)])
+    expect(r.map((b) => b.id)).toEqual(["high", "low"])
+  })
+  it("ignores deleted elements", () => {
+    const r = blocksFromScene([el("q", "image", 0), el("gone", "image", 200, 50, { isDeleted: true }), el("s", "freedraw", 100, 10, { isDeleted: true })])
+    expect(r).toHaveLength(1)
+    expect(r[0].strokes).toBe(0)
+  })
+  it("overlapping images give an empty answer", () => {
+    const r = blocksFromScene([el("q1", "image", 0, 100), el("q2", "image", 50, 100), el("s", "freedraw", 120, 10)])
+    expect(r[0].region.overlaps).toBe(true)
+    expect(r[0].strokes).toBe(0)
+  })
+})

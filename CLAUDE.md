@@ -30,7 +30,7 @@ Out: a general chatbot, shapes, lasso, handwriting-to-text, folders, templates, 
 - Follow docs/MARKING.md for how marking works. Mark the first error, then mark later lines as "follows from the error".
 - The model is one setting (`GEMINI_MODEL`). Do not hard-code a model name in many places.
 - Handwriting is stored as strokes, not typed text. The AI transcription is a temporary step. It is shown only behind "what it read".
-- UI components: shadcn/ui, light mode only for now. The left sidebar starts from the `sidebar-08` block (`npx shadcn@latest add sidebar-08`), then is changed to a course, year and paper tree with the app name skrrMath. Check the block's actual files before editing it. The mockup in docs/mockup/index.html shows the intended layout.
+- UI components: shadcn/ui, light mode only for now. The left sidebar starts from the `sidebar-08` block (`npx shadcn@latest add sidebar-08`), then is changed to a course and year list with the app name skrrMath. Check the block's actual files before editing it. The mockup in docs/mockup/index.html shows the intended layout.
 - UI: paper look, red-pen margin marks, a marking layer that can be hidden. No gradients, badges, sparkle icons or chat bubbles. No "AI" labels, except the "AI-checked" mark label (owner decision, 2026-11-02).
 - Secrets: `SUPABASE_SERVICE_ROLE_KEY` and `GEMINI_API_KEY` live only on the server. Never put them in browser code, logs or commits. Only `.env.example` is committed.
 - Private data (notes, papers, markings) is visible only to its owner. Use database access rules on every table. Test them with two accounts.

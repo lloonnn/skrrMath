@@ -20,8 +20,11 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 | Day 1: sidebar in `web/` | Done (sidebar only, light mode, made-up sample data). Build passes. Not seen in a browser by Claude. |
 | Day 2: answer region and course-code cleanup | Done as pure functions in `shared/src/blocks.ts` with tests (51 tests in `shared/` now). Not used by `web/` yet. Course-code pattern is a guess. Answers that continue onto the next page are not handled. |
 | Day 3: marking display (version 2, per-line marks) | Built. `marking-service` now has a locate step (position only, boxes matched to lines by order, only when the counts are equal, 2 percent padding). Result lines have a `box`. `shared/src/marking-view.ts` has `lineMarks` (cross on the error, "follows" notes, a tick at the end of each run of good lines, a can't-read note). `web/` draws them beside the page image. Falls back to the one-note margin when any line has no box. Tests: 62 in `shared/`, 40 in `marking-service/`. Screenshot checked in headless Chrome on the demo. |
+| Day 2: question blocks (paste version) | Built. A pasted image on the canvas is a question, numbered from the top. Course, year and paper come from the paper picked in the left list, so nothing is typed. The panel has one section per question with a Mark button. Logic in `shared/src/blocks.ts` (`blocksFromScene`, 71 tests in `shared/`). Checked in headless Chrome by dropping an image; real Ctrl+V, the tablet and pen strokes are not tried. Nothing is saved. Mark shows the saved demo example. Drawing a box on an imported PDF is not built. The left list is still made-up sample data. |
 | Day 1: canvas | Excalidraw added to `web/` (`src/features/canvas/note-canvas.tsx`), light theme, no save or load. Build passes. Not seen in a browser by Claude. Pen feel on the tablet not tested. |
-| Day 1: Supabase sign-in, save and load, tablet to laptop sync | Not started. No Supabase project exists yet. |
+| Day 1: Supabase project and tables | Done. Dev project exists (keys in the owner's `.env`). Migrations 0001 and 0002 are applied: courses, years, pages, question_blocks, markings, all with access rules. `scripts/rls-test.mjs` (two temporary accounts, 21 checks) passes. Not tried: proving the test fails when the rules are off (blocked as a security risk, needs the owner's OK). |
+| Day 1: Supabase sign-in | Built as a user box at the bottom of the left panel: Continue with Google, or email and password, Sign out. Email sign-in tested in headless Chrome (wrong password, sign-in, reload keeps it, sign-out). **Google sign-in is untested**: the owner must turn it on in Supabase (needs a Google Cloud OAuth client). Domain limit (`ALLOWED_EMAIL_DOMAIN`) not enforced yet. |
+| Day 1: cloud save and tablet to laptop sync | Not started. The course list is still in this browser only. Canvas writing is lost on refresh. |
 | `shared/` marking schema and fixtures | Done. Zod schema and rules in `shared/src/marking.ts`, four made-up fixtures in `fixtures/marking/`, 26 Vitest tests pass (`npm test` in `shared/`). Not yet imported by `web/` or `marking-service/`. |
 | `marking-service/` | `demo` and `google` providers, pipeline, rules, limits and rate limit built. 30 Vitest tests pass with a mock model (`npm test` there). Demo mode smoke-tested by curl. The `google` provider ran twice live on page 2 (see `docs/TEST-LOG.md`): works, but the first error moved between runs (line 12, then line 10) because the minus on line 10 was read differently. About 32 s per marking. Cost not measured. The auth check is a dev token. `replit` provider built (same Google SDK with Replit's base URL), tests pass, never run on Replit. Supabase auth not built. |
 | Tests (Vitest, Playwright) | Not set up |
@@ -29,6 +32,19 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 ## To do before the project is finished
 
 - Remove the demo note in the marking panel ("Demo: marks a saved example page ... Nothing is sent to an AI."). It is in `web/src/features/marking/marking-margin.tsx`. The owner asked for this. The hosted demo may keep a short "Example only" note instead.
+
+## Model access (2026-11-02)
+
+- Replit's Gemini integration cannot be added to the new Replit app (no approval prompt appears). The `replit` provider is built but cannot be tested.
+- On the owner's free Google key, only flash models work. `gemini-4-argon` and `gemini-3.1-pro-preview` need a paid plan (quota 0). `gemini-3.8-flash` was slow (146 s for one transcription) and returned a 503 once. The stability test on a stronger model is not done.
+- The service now reports quota, busy and timeout errors as HTTP 502 with a message, and does not retry them. Each model call stops after 90 s.
+
+## Notes on the Supabase setup
+
+- Free-text names mean the shared bank (stage two) cannot match "Calculus II" to "MATH201". The bank needs a shared course code. Noted in `supabase/schema.sql`.
+- `MARK_DEV_TOKEN` in the owner's `.env` is 3 characters long. Fine on a laptop only. Make it long before any public use.
+- The marking service still uses the dev token. `MARK_AUTH=supabase` (check the Supabase token) is not built.
+- Ids are made by the browser as real UUIDs (`web/src/lib/uid.ts`). Over plain http on a tablet `crypto.randomUUID` does not exist, which is why Add did nothing there before.
 
 ## Parked
 
@@ -38,7 +54,7 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 
 1. The owner tests pen feel in `web/` on the tablet (write, palm, pen-only, zoom, eraser). If it fails, reopen the choice. Then: save and load strokes, with Supabase (task 4).
 2. Run the marking service on Replit and test the stronger model. The owner creates a new Replit app from this repo, adds the Gemini integration to it, and sets `AI_PROVIDER=replit`, `GEMINI_MODEL`, `MARK_DEV_TOKEN`. Replit Agent suggested `gemini-4-argon` as strongest (unverified by us, slower and costlier than Flash, not yet tested from Replit). Then rerun page 2 several times to see if the first error stays on line 12 (it moved to line 10 once on the local flash-lite model). If it still moves, add the two-read check. Then pages 1 and 4.
-3. Supabase: the owner creates a project and puts the URL and anon key in a local `.env`. Then sign-in and save and load of one page, tested tablet to laptop.
+3. Cloud save: load and save the course list and each paper's canvas to the Supabase tables when signed in. Then test tablet to laptop. Guest mode is decided (see Decisions). When signed in, load and save to the cloud; when a guest, keep using the browser.
 4. The owner asks Replit Agent to add a sign-in check and rate limit to the test endpoint (see below).
 
 ## Schema rules to confirm
@@ -83,6 +99,11 @@ Answers: not received yet.
 
 ## Decisions made
 
+- 2026-11-02, owner: **guest mode**. Without an account the app works fully: the list and the canvas stay in this browser, and the demo Mark works (it calls no AI). Signing in is needed for saving online, syncing the tablet and the laptop, and real AI marking (each marking costs money). The switch is `MARK_NEEDS_SIGN_IN` in `web/src/features/marking/demo-marking.ts` (now false, because Mark is a demo). Set it to true when Mark is connected to the marking service. This changes `docs/PLAN.md` Day 1 (sign-in first). Decided (owner): when a guest signs in, the notes already in the browser are kept and uploaded to the account. Not built yet, it is part of cloud save.
+- 2026-11-02, owner: the second level is called a **note** on screen, not "year". It can be a year, a tutorial, extra practice, or anything. Only the visible words changed. The code, the shared functions and the database still say "year" (`years` table, `addYear`). A later clean-up can rename those. Not retested beyond the build and the shared tests.
+- 2026-11-02, owner: the paper level is removed. The list is course, then year. A year is the note you write in. Migration `supabase/migrations/0002_note_is_year.sql` is applied (the `papers` table is gone and a page belongs to a year). The add box is full width with short placeholders ("Course", "Year"). Limit: one note per course and year, so Paper 1 and Paper 2 of one year share a canvas unless the owner adds the level back or names years like "2023 P1".
+- 2026-11-02, owner: the left list is real, not sample data. Add a course, a year and a paper. Names are free text (up to 40 letters, no duplicates in the same place): "Calculus II", "2023/24", "Semester 1". Course codes are no longer forced to look like MATH201, and years are no longer forced to be 4 digits (owner decision). Buttons are 40 px on touch screens, 24 px with a mouse (a note canvas), with + buttons. A ⋯ menu per row renames or deletes. Each paper keeps its own canvas while the page is open. The list is saved in this browser only (`localStorage`), not synced. Canvas writing is lost on refresh. The mock folders, "New paper", "Notes", Settings, Help and the placeholder user were removed. Structure is course, year, paper only. Free folders stay out of scope (`CLAUDE.md`). The right panel's resize grip is wider so a finger can grab it (touch drag tested with simulated touch, not on a real tablet).
+- 2026-11-02, owner: the right panel can be resized by dragging its left edge (min 280 px, max 760 px, default 360 px; not saved between visits). The "New paper" button and the "Notes" list (Blank notes, Scratch pad) were removed from the left sidebar because they did nothing. Settings and Help remain and do nothing. Courses and papers cannot be added yet: the list is made-up sample data until sign-in and storage exist.
 - 2026-11-02, owner: the label for an AI-only mark is "AI-checked" (was "Not verified"). It does not mean correct. "Verified by AI" was rejected as misleading. Rules in `CLAUDE.md`, `docs/MARKING.md` and the tests were changed to match.
 - 2026-11-02, owner: the right panel opens and closes with a button in the header. That replaces the hide-marks button and the eye icon. Closing the panel hides the marks and keeps them for when it reopens. Marks sit on the page image beside each line. The panel is white and full height. The reference answer is shown as maths (KaTeX, MIT) when the student's answer does not match: "Expected answer" for an AI reference (the "AI-checked" label sits under it), "Correct answer" for a verified one.
 - MVP is plan days 1 to 5. The shared course bank is stage two. It is cut if behind on day 6.

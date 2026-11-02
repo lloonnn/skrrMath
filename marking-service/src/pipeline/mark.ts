@@ -1,6 +1,6 @@
 import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
-import type { ModelCall, ModelClient } from "../providers/types.ts"
+import { ModelUnavailableError, type ModelCall, type ModelClient } from "../providers/types.ts"
 import type { Engine, MarkRequest } from "../types.ts"
 import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 import {
@@ -44,7 +44,8 @@ async function callJson<T>(client: ModelClient, call: ModelCall, schema: z.ZodTy
     try {
       const parsed = schema.safeParse(JSON.parse(await client.generate(call)))
       if (parsed.success) return parsed.data
-    } catch {
+    } catch (e) {
+      if (e instanceof ModelUnavailableError) throw e // retrying cannot help
       // bad JSON or a failed call: try once more
     }
   }

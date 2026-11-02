@@ -85,8 +85,8 @@ Draft tables are in `supabase/schema.sql`. Summary:
 
 | Table | Holds | Who can see it |
 |---|---|---|
-| papers | imported PDF info, file path, course and year | owner only |
-| pages | strokes (JSON) per page | owner only |
+| courses, years | the owner's list. A year is the note. Free-text names | owner only |
+| pages | strokes (JSON), one note per year | owner only |
 | question_blocks | block position, tags, optional own reference | owner only |
 | markings | marking result (JSON), status, label | owner only |
 | bank_answers | tags, answer, who added, trust level | all signed-in users read, author edits |
@@ -97,7 +97,7 @@ Files: PDFs and pasted images go to private storage under the owner's id. The sh
 
 ## Flows
 
-**Open a note.** Sign in. Load pages and blocks for the paper. Draw strokes on the canvas.
+**Open a note.** A guest works in the browser only. A signed-in user loads their notes from the cloud. Draw strokes on the canvas.
 
 **Mark a block.**
 1. The browser renders the block and its answer region to one image.

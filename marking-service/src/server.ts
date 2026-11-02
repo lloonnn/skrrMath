@@ -5,6 +5,7 @@ import { createRateLimiter } from "./middleware/rate-limit.ts"
 import { createModelEngine } from "./pipeline/mark.ts"
 import { createDemoEngine } from "./providers/demo.ts"
 import { createGoogleClient } from "./providers/google.ts"
+import { ModelUnavailableError } from "./providers/types.ts"
 import { markRequestSchema, type Engine } from "./types.ts"
 
 export type Deps = { config: Config; engine: Engine; verify: Verifier; now?: () => number }
@@ -71,6 +72,10 @@ export function buildServer({ config, engine, verify, now }: Deps): Server {
       send(res, 200, await engine.mark(parsed.data))
     } catch (e) {
       if (e instanceof HttpError) return send(res, e.status, { error: e.message })
+      if (e instanceof ModelUnavailableError) {
+        console.error("model unavailable:", e.status)
+        return send(res, 502, { error: e.message })
+      }
       // Never log request bodies or keys.
       console.error("mark failed:", e instanceof Error ? e.name : "unknown error")
       send(res, 500, { error: "marking failed" })

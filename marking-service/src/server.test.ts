@@ -5,6 +5,7 @@ import { createDevVerifier } from "./middleware/auth.ts"
 import { createDemoEngine } from "./providers/demo.ts"
 import { buildServer, engineFromConfig } from "./server.ts"
 import type { Config } from "./config.ts"
+import { ModelUnavailableError } from "./providers/types.ts"
 
 const baseEnv = { AI_PROVIDER: "demo", MARK_DEV_TOKEN: "t" }
 const img = { mimeType: "image/png", base64: "AAAA" }
@@ -102,6 +103,20 @@ describe("POST /api/mark", () => {
     expect((await s.post({ token: "user-b" })).status).toBe(200)
     clock.t += 61_000
     expect((await s.post({ token: "user-a" })).status).toBe(200)
+  })
+})
+
+describe("model unavailable", () => {
+  it("is a 502 with a clear message, not an unreadable result", async () => {
+    const config = loadConfig(baseEnv)
+    const engine = { mark: async () => { throw new ModelUnavailableError(429, "model call refused (429): check quota, key and model name") } }
+    const server = buildServer({ config, engine, verify: async () => ({ userId: "u" }) })
+    await new Promise<void>((r) => server.listen(0, r))
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/mark`
+    const res = await fetch(url, { method: "POST", headers: { authorization: "Bearer t", "content-type": "application/json" }, body: JSON.stringify(body) })
+    server.close()
+    expect(res.status).toBe(502)
+    expect(((await res.json()) as { error: string }).error).toMatch(/quota/)
   })
 })
 

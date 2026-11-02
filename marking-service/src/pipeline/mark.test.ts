@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { markingLabel } from "../../../shared/src/index.ts"
 import type { ModelCall, ModelClient } from "../providers/types.ts"
+import { ModelUnavailableError } from "../providers/types.ts"
 import type { MarkRequest } from "../types.ts"
 import { markWithModel } from "./mark.ts"
 import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
@@ -183,6 +184,13 @@ describe("markWithModel", () => {
     const r = await markWithModel(client, req(), opts)
     expect(r.status).toBe("marked")
     expect(calls.filter((c) => c === "mark")).toHaveLength(2)
+  })
+
+  it("passes a quota error up instead of calling the answer unreadable", async () => {
+    const calls: number[] = []
+    const client: ModelClient = { generate: async () => { calls.push(1); throw new ModelUnavailableError(429, "quota") } }
+    await expect(markWithModel(client, req(), opts)).rejects.toBeInstanceOf(ModelUnavailableError)
+    expect(calls).toHaveLength(1) // no retry
   })
 
   it("returns unreadable after one retry of broken JSON", async () => {
