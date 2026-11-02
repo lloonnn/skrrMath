@@ -122,3 +122,75 @@ export function readTree(raw: unknown): PaperTree {
     return [{ id: c.id, code: c.code, years }]
   })
 }
+
+// ---- Cloud save ----
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const isUuid = (s: string) => UUID.test(s)
+
+// Rows from the database become the list. Years are sorted the same way as everywhere.
+export function buildTree(
+  courses: { id: string; name: string }[],
+  years: { id: string; course_id: string; label: string }[]
+): PaperTree {
+  return courses.map((c) => ({
+    id: c.id,
+    code: c.name,
+    years: years
+      .filter((y) => y.course_id === c.id)
+      .map((y) => ({ id: y.id, year: y.label }))
+      .sort(byYearItem),
+  }))
+}
+
+function byYearItem(a: { year: string }, b: { year: string }) {
+  return b.year.localeCompare(a.year, undefined, { numeric: true })
+}
+
+export type Upload = {
+  // For every note of the guest list: the id it has in the account. It is the same id,
+  // a new one, or the id of the account's note with the same name. The writing follows it.
+  yearIdMap: Record<string, string>
+  merged: PaperTree
+  newCourses: { id: string; name: string }[]
+  newYears: { id: string; courseId: string; label: string }[]
+}
+
+// A guest signs in with a list already in the browser. Keep it: add whatever the
+// account does not have yet. A course or note with the same name (ignoring case) is
+// treated as the same one, so signing in twice never makes copies.
+// Ids that are not real UUIDs (older saves) get a new id, because the database needs UUIDs.
+export function mergeLocalIntoCloud(cloud: PaperTree, local: PaperTree, newId: () => string): Upload {
+  const merged: PaperTree = cloud.map((c) => ({ ...c, years: [...c.years] }))
+  const newCourses: Upload["newCourses"] = []
+  const newYears: Upload["newYears"] = []
+  const yearIdMap: Record<string, string> = {}
+  const taken = new Set<string>(merged.flatMap((c) => [c.id, ...c.years.map((y) => y.id)]))
+  const pick = (id: string) => {
+    let out = isUuid(id) && !taken.has(id) ? id : newId()
+    while (taken.has(out)) out = newId()
+    taken.add(out)
+    return out
+  }
+  for (const lc of local) {
+    let target = merged.find((c) => same(c.code, lc.code))
+    if (!target) {
+      target = { id: pick(lc.id), code: lc.code, years: [] }
+      merged.push(target)
+      newCourses.push({ id: target.id, name: target.code })
+    }
+    for (const ly of lc.years) {
+      const existing = target.years.find((y) => same(y.year, ly.year))
+      if (existing) {
+        yearIdMap[ly.id] = existing.id
+        continue
+      }
+      const year = { id: pick(ly.id), year: ly.year }
+      yearIdMap[ly.id] = year.id
+      target.years.push(year)
+      newYears.push({ id: year.id, courseId: target.id, label: year.year })
+    }
+    target.years.sort(byYearItem)
+  }
+  return { yearIdMap, merged, newCourses, newYears }
+}

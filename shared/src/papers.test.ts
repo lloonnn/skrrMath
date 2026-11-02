@@ -91,3 +91,73 @@ describe("readTree", () => {
     expect(readTree([{ id: 1 }, null, { id: "c", code: "A1", years: [{ id: "y", year: { bad: true } }] }])).toEqual([{ id: "c", code: "A1", years: [] }])
   })
 })
+
+import { buildTree, isUuid, mergeLocalIntoCloud } from "./papers.ts"
+
+const U = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`
+
+describe("buildTree", () => {
+  it("nests years under their course, newest first", () => {
+    const t = buildTree(
+      [{ id: "c1", name: "Calc" }, { id: "c2", name: "Algebra" }],
+      [{ id: "y1", course_id: "c1", label: "2022" }, { id: "y2", course_id: "c1", label: "2024" }, { id: "y3", course_id: "c2", label: "Tut" }]
+    )
+    expect(t[0].years.map((y) => y.year)).toEqual(["2024", "2022"])
+    expect(t[1].years.map((y) => y.year)).toEqual(["Tut"])
+  })
+  it("a course with no years is kept", () => expect(buildTree([{ id: "c", name: "X" }], [])).toEqual([{ id: "c", code: "X", years: [] }]))
+})
+
+describe("mergeLocalIntoCloud", () => {
+  let n = 100
+  const fresh = () => U(n++)
+  const local: PaperTree = [{ id: U(1), code: "Calculus", years: [{ id: U(2), year: "2023" }, { id: U(3), year: "Tut 1" }] }]
+
+  it("uploads everything into an empty account, keeping ids that are UUIDs", () => {
+    const r = mergeLocalIntoCloud([], local, fresh)
+    expect(r.merged).toEqual(local.map((c) => ({ ...c, years: [{ id: U(3), year: "Tut 1" }, { id: U(2), year: "2023" }].sort((a, b) => b.year.localeCompare(a.year, undefined, { numeric: true })) })))
+    expect(r.newCourses).toEqual([{ id: U(1), name: "Calculus" }])
+    expect(r.newYears.map((y) => y.label).sort()).toEqual(["2023", "Tut 1"])
+  })
+  it("makes no copies when the account already has them (ignoring case)", () => {
+    const cloud: PaperTree = [{ id: U(50), code: "calculus", years: [{ id: U(51), year: "2023" }] }]
+    const r = mergeLocalIntoCloud(cloud, local, fresh)
+    expect(r.newCourses).toEqual([])
+    expect(r.newYears.map((y) => y.label)).toEqual(["Tut 1"])
+    expect(r.newYears[0].courseId).toBe(U(50))
+  })
+  it("running it twice adds nothing the second time", () => {
+    const first = mergeLocalIntoCloud([], local, fresh)
+    const second = mergeLocalIntoCloud(first.merged, local, fresh)
+    expect(second.newCourses).toEqual([])
+    expect(second.newYears).toEqual([])
+  })
+  it("gives a new UUID to an old id that is not one", () => {
+    const old: PaperTree = [{ id: "abc123", code: "Old", years: [{ id: "def456", year: "2020" }] }]
+    const r = mergeLocalIntoCloud([], old, fresh)
+    expect(isUuid(r.newCourses[0].id)).toBe(true)
+    expect(isUuid(r.newYears[0].id)).toBe(true)
+  })
+  it("never reuses an id the account already has", () => {
+    const cloud: PaperTree = [{ id: U(1), code: "Other", years: [] }]
+    const r = mergeLocalIntoCloud(cloud, local, fresh)
+    expect(r.newCourses[0].id).not.toBe(U(1))
+  })
+  it("maps every guest note to its id in the account", () => {
+    const old: PaperTree = [{ id: "abc", code: "Old", years: [{ id: "def", year: "2020" }] }]
+    const r = mergeLocalIntoCloud([], old, fresh)
+    expect(r.yearIdMap).toEqual({ def: r.newYears[0].id })
+  })
+  it("maps a guest note to the account note with the same name", () => {
+    const cloud: PaperTree = [{ id: U(50), code: "Calculus", years: [{ id: U(51), year: "2023" }] }]
+    const r = mergeLocalIntoCloud(cloud, local, fresh)
+    expect(r.yearIdMap[U(2)]).toBe(U(51))
+    expect(r.yearIdMap[U(3)]).toBe(r.newYears[0].id)
+  })
+  it("does not change the lists passed in", () => {
+    const cloud: PaperTree = [{ id: U(50), code: "Calculus", years: [] }]
+    const copy = JSON.parse(JSON.stringify(cloud))
+    mergeLocalIntoCloud(cloud, local, fresh)
+    expect(cloud).toEqual(copy)
+  })
+})

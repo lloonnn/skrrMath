@@ -24,7 +24,7 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 | Day 1: canvas | Excalidraw added to `web/` (`src/features/canvas/note-canvas.tsx`), light theme, no save or load. Build passes. Not seen in a browser by Claude. Pen feel on the tablet not tested. |
 | Day 1: Supabase project and tables | Done. Dev project exists (keys in the owner's `.env`). Migrations 0001 and 0002 are applied: courses, years, pages, question_blocks, markings, all with access rules. `scripts/rls-test.mjs` (two temporary accounts, 21 checks) passes. Not tried: proving the test fails when the rules are off (blocked as a security risk, needs the owner's OK). |
 | Day 1: Supabase sign-in | Built as a user box at the bottom of the left panel: Continue with Google, or email and password, Sign out. Email sign-in tested in headless Chrome (wrong password, sign-in, reload keeps it, sign-out). **Google sign-in is untested**: the owner must turn it on in Supabase (needs a Google Cloud OAuth client). Domain limit (`ALLOWED_EMAIL_DOMAIN`) not enforced yet. |
-| Day 1: cloud save and tablet to laptop sync | Not started. The course list is still in this browser only. Canvas writing is lost on refresh. |
+| Day 1: cloud save and tablet to laptop sync | Built and tested with two browsers (`e2e/cloud-save.mjs`, 26 checks pass). Signed in: the list comes from the account and every add, rename and delete is written to it. Each note's writing autosaves about 3 s after you stop (header shows Unsaved changes, Saving, Saved). First sign-in uploads the guest list without copies, then clears the browser copy. The list refreshes when you come back to the tab. **Not tried on the real tablet.** |
 | `shared/` marking schema and fixtures | Done. Zod schema and rules in `shared/src/marking.ts`, four made-up fixtures in `fixtures/marking/`, 26 Vitest tests pass (`npm test` in `shared/`). Not yet imported by `web/` or `marking-service/`. |
 | `marking-service/` | `demo` and `google` providers, pipeline, rules, limits and rate limit built. 30 Vitest tests pass with a mock model (`npm test` there). Demo mode smoke-tested by curl. The `google` provider ran twice live on page 2 (see `docs/TEST-LOG.md`): works, but the first error moved between runs (line 12, then line 10) because the minus on line 10 was read differently. About 32 s per marking. Cost not measured. The auth check is a dev token. `replit` provider built (same Google SDK with Replit's base URL), tests pass, never run on Replit. Supabase auth not built. |
 | Tests (Vitest, Playwright) | Not set up |
@@ -96,6 +96,15 @@ Needed before the `replit` provider can be written. Only Replit Agent can answer
 5. Whether the marking service can run as its own Replit app with these variables, separate from the handwriting-extractor app.
 
 Answers: not received yet.
+
+## Cloud save: how it works and its limits
+
+- Latest save wins. There is no merge. If two devices edit the same note, the last save overwrites the other. An open note does not update live. Reopen it, or switch notes, to load the latest.
+- The note's elements and its pasted images are stored together in the `pages.strokes` JSON. Big pasted images make big saves. The Supabase request size limit is unchecked. A failed save shows in red in the header.
+- A guest's writing is saved in this browser (IndexedDB, about 1 s after you stop) and survives a refresh. At sign-in it is uploaded together with the list, then removed from the browser. If the account's note of the same name already has writing, nothing is overwritten: the guest writing becomes a new note named "<name> (from this browser)" and the header says so. If an upload fails, the browser copy stays and signing in again retries. Browser storage can be blocked or full (private windows), then the header shows "Not saved".
+- Marking results are not saved yet (the `markings` table is unused).
+- Signing out clears the list on screen, because it lives in the account. Sign in again to see it.
+- Every edit while signed in is written straight away. If a write fails, the header says so and the list reloads from the account.
 
 ## Decisions made
 
