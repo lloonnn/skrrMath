@@ -77,12 +77,12 @@ describe("rules", () => {
 })
 
 describe("markingLabel", () => {
-  it("says Not verified for ai_solved", () =>
-    expect(markingLabel({ reference_source: "ai_solved" })).toBe("Not verified"))
+  it("says AI-checked for ai_solved", () =>
+    expect(markingLabel({ reference_source: "ai_solved" })).toBe("AI-checked"))
   it("says checked for a user answer", () =>
     expect(markingLabel({ reference_source: "verified_user" })).toBe("Checked against your answer"))
-  it("never says Not verified for a verified source", () => {
+  it("never says AI-checked for a verified source", () => {
     for (const s of ["verified_user", "verified_bank"] as const)
-      expect(markingLabel({ reference_source: s })).not.toBe("Not verified")
+      expect(markingLabel({ reference_source: s })).not.toBe("AI-checked")
   })
 })

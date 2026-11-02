@@ -3,7 +3,7 @@ import { markingLabel } from "../../../shared/src/index.ts"
 import type { ModelCall, ModelClient } from "../providers/types.ts"
 import type { MarkRequest } from "../types.ts"
 import { markWithModel } from "./mark.ts"
-import { EQUIV_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 
 const img = { mimeType: "image/png" as const, base64: "AAAA" }
 const req = (extra: Partial<MarkRequest> = {}): MarkRequest => ({
@@ -14,18 +14,18 @@ const req = (extra: Partial<MarkRequest> = {}): MarkRequest => ({
 })
 const opts = { solveRuns: 2, model: "mock-model" }
 
-type Step = "transcribe" | "solve" | "mark" | "equiv"
+type Step = "transcribe" | "solve" | "mark" | "equiv" | "locate"
 const stepOf = (c: ModelCall): Step =>
-  c.system === TRANSCRIBE_SYSTEM ? "transcribe" : c.system === SOLVE_SYSTEM ? "solve" : c.system === EQUIV_SYSTEM ? "equiv" : (c.system === MARK_SYSTEM ? "mark" : (() => { throw new Error("unknown step") })())
+  c.system === TRANSCRIBE_SYSTEM ? "transcribe" : c.system === SOLVE_SYSTEM ? "solve" : c.system === EQUIV_SYSTEM ? "equiv" : c.system === LOCATE_SYSTEM ? "locate" : (c.system === MARK_SYSTEM ? "mark" : (() => { throw new Error("unknown step") })())
 
 // A scripted model. Each step has a queue of replies. The last one repeats.
 function mock(input: Partial<Record<Step, string[]>>) {
-  const script = { equiv: [JSON.stringify({ equivalent: false })], ...input } as Record<Step, string[]>
+  const script = { locate: ["[]"], equiv: [JSON.stringify({ equivalent: false })], ...input } as Record<Step, string[]>
   return mockFull(script)
 }
 function mockFull(script: Record<Step, string[]>) {
   const calls: Step[] = []
-  const used: Record<Step, number> = { transcribe: 0, solve: 0, mark: 0, equiv: 0 }
+  const used: Record<Step, number> = { transcribe: 0, solve: 0, mark: 0, equiv: 0, locate: 0 }
   const client: ModelClient = {
     async generate(call) {
       const s = stepOf(call)
@@ -53,8 +53,41 @@ const markOut = (lines: unknown[], over: Record<string, unknown> = {}) =>
   })
 const okLines = [ml(1, "ok"), ml(2, "error", "Sign slip"), ml(3, "follows_from_error"), ml(4, "follows_from_error")]
 
+const locateFor = (n: number) =>
+  JSON.stringify(Array.from({ length: n }, (_, i) => ({ text: `l${i + 1}`, box_2d: [i * 200 + 50, 100, i * 200 + 150, 900] })))
+
 describe("markWithModel", () => {
-  it("marks the first error, labels it Not verified, and keeps the literal text", async () => {
+  it("puts a padded box on each line when the counts match", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)], locate: [locateFor(4)] })
+    const r = await markWithModel(client, req(), opts)
+    expect(r.lines.every((l) => l.box !== null)).toBe(true)
+    expect(r.lines[0].box).toEqual([30, 80, 170, 920]) // 2 percent added on each side
+    expect(r.lines[3].box).toEqual([630, 80, 770, 920])
+  })
+  it("gives no boxes when the count differs, and still marks", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)], locate: [locateFor(3)] })
+    const r = await markWithModel(client, req(), opts)
+    expect(r.status).toBe("marked")
+    expect(r.lines.every((l) => l.box === null)).toBe(true)
+  })
+  it("keeps marking when the locate step fails", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)], locate: ["oops"] })
+    const r = await markWithModel(client, req(), opts)
+    expect(r.status).toBe("marked")
+    expect(r.lines.every((l) => l.box === null)).toBe(true)
+  })
+  it("clamps padding to the 0 to 1000 scale", async () => {
+    const one = JSON.stringify([{ text: "a", box_2d: [0, 0, 1000, 1000] }])
+    const { client } = mock({ transcribe: [transcription([line(1, "x = 5")])], solve: [solve("x=5")], mark: [markOut([ml(1, "ok")], { error_type: null })], locate: [one] })
+    expect((await markWithModel(client, req(), opts)).lines[0].box).toEqual([0, 0, 1000, 1000])
+  })
+  it("pads a zero-size box into a small valid one", async () => {
+    const bad = JSON.stringify([{ text: "a", box_2d: [500, 500, 500, 500] }])
+    const { client } = mock({ transcribe: [transcription([line(1, "x = 5")])], solve: [solve("x=5")], mark: [markOut([ml(1, "ok")], { error_type: null })], locate: [bad] })
+    const r = await markWithModel(client, req(), opts)
+    expect(r.lines[0].box).toEqual([480, 480, 520, 520])
+  })
+  it("marks the first error, labels it AI-checked, and keeps the literal text", async () => {
     const { client } = mock({ transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)] })
     const r = await markWithModel(client, req(), opts)
     expect(r.status).toBe("marked")
@@ -62,7 +95,7 @@ describe("markWithModel", () => {
     expect(r.lines.map((l) => l.verdict)).toEqual(["ok", "error", "follows_from_error", "follows_from_error"])
     expect(r.lines[1].latex).toBe("3x = 10 - 5") // the student's slip, not corrected
     expect(r.solve_runs_agree).toBe(true)
-    expect(markingLabel(r)).toBe("Not verified")
+    expect(markingLabel(r)).toBe("AI-checked")
     expect(r.model).toBe("mock-model")
   })
 
@@ -72,7 +105,7 @@ describe("markWithModel", () => {
     expect(calls).not.toContain("solve")
     expect(r.reference_source).toBe("verified_user")
     expect(r.solve_runs_agree).toBeNull()
-    expect(markingLabel(r)).not.toBe("Not verified")
+    expect(markingLabel(r)).not.toBe("AI-checked")
   })
 
   it("keeps the first error when the model marks two", async () => {

@@ -25,6 +25,13 @@ export const referenceSourceValues = [
   "ai_solved",
 ] as const
 
+// Where the line sits on the answer image: [ymin, xmin, ymax, xmax] on a 0 to 1000 scale.
+// null when the model did not locate lines, or the count did not match.
+export const boxSchema = z
+  .tuple([z.number().int().min(0).max(1000), z.number().int().min(0).max(1000), z.number().int().min(0).max(1000), z.number().int().min(0).max(1000)])
+  .refine(([y0, x0, y1, x1]) => y0 < y1 && x0 < x1, "box must have ymin < ymax and xmin < xmax")
+export type Box = z.infer<typeof boxSchema>
+
 const lineSchema = z.strictObject({
   n: z.number().int().positive(),
   latex: z.string(),
@@ -32,6 +39,7 @@ const lineSchema = z.strictObject({
   verdict: z.enum(verdictValues),
   comment: z.string(),
   correct_latex: z.string().nullable(),
+  box: boxSchema.nullable(),
 })
 
 const finalAnswerSchema = z.strictObject({
@@ -127,7 +135,7 @@ export function parseMarkingResult(input: unknown): ParseOutcome {
 export function markingLabel(r: Pick<MarkingResult, "reference_source">): string {
   switch (r.reference_source) {
     case "ai_solved":
-      return "Not verified"
+      return "AI-checked"
     case "verified_user":
       return "Checked against your answer"
     case "verified_bank":

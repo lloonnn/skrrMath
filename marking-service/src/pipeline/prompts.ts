@@ -32,3 +32,10 @@ export const EQUIV_SYSTEM = `You compare final answers to one maths question.
 Say whether all the answers are mathematically equivalent, even if written differently (for example a cube root and a power of 1/3).
 If you are not sure, say false.
 Reply with JSON only: {"equivalent": boolean}.`
+
+// Used for position only. Its text is never used as the transcription,
+// because a locating call once corrected the student's sign slip (docs/MARKING.md).
+export const LOCATE_SYSTEM = `You find where each handwritten line of an answer sits on an image.
+Return one entry per handwritten line, from top to bottom, one box per line, in reading order. Do not merge or split lines.
+"box_2d" is [ymin, xmin, ymax, xmax] on a 0 to 1000 scale. "text" is only a short label, copy what is written.
+Reply with JSON only: [{"text": string, "box_2d": [number, number, number, number]}].`

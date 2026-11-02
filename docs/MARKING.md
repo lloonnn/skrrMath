@@ -76,13 +76,15 @@ Studies on AI marking of handwritten maths (see the notes in the knowledge-base 
 | unreadable | "can't read this line, please check", line left unmarked |
 
 Label under the block:
-- "Not verified" when `reference_source` is `ai_solved`.
+- "AI-checked" when `reference_source` is `ai_solved`. It means the AI marked from its own reasoning. It does not mean the answer is correct. (The owner chose this wording on 2026-11-02 in place of "Not verified".)
 - "Checked against your answer" for a user's own reference.
 - The bank's trust level for a bank answer (stage two).
 
 The "what it read" link opens the transcription so the student can fix a misread and mark again. The marking layer can be hidden.
 
 ## Per-line marks
+
+Status 2026-11-02: version 2 is built (see `STATUS.md`). It falls back to version 1 when boxes are missing.
 
 Version 1 puts one margin comment per block, with a tick or cross for the whole answer. Version 2 places marks beside each line. Version 2 needs the model to say where each handwritten line is on the image.
 
@@ -132,5 +134,5 @@ Up to four calls per marking when no verified answer exists if every step is sep
 ## Limits
 
 - The AI can misread handwriting. That is why the transcription is shown on request.
-- Two agreeing AI solutions are still not proof of a correct answer. The label stays "Not verified".
+- Two agreeing AI solutions are still not proof of a correct answer. The label stays "AI-checked", never "verified".
 - Not tested on messy pages, diagrams, or other subjects.

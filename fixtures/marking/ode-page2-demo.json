@@ -1,0 +1,256 @@
+{
+  "status": "marked",
+  "question_restated": "Solve x y^2 dy/dx = y^3 - x^3, given y(1) = 2.",
+  "lines": [
+    {
+      "n": 1,
+      "latex": "23\\text{ a) } x y^2 \\frac{dy}{dx} = y^3 - x^3",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        13,
+        77,
+        81,
+        443
+      ]
+    },
+    {
+      "n": 2,
+      "latex": "\\text{let } y = ux \\Rightarrow u = \\frac{y}{x}",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        33,
+        133,
+        134,
+        546
+      ]
+    },
+    {
+      "n": 3,
+      "latex": "\\frac{dy}{dx} = u + x \\frac{du}{dx}",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        88,
+        207,
+        180,
+        432
+      ]
+    },
+    {
+      "n": 4,
+      "latex": "\\text{Hence } x(ux)^2 [u + x \\frac{du}{dx}] = (ux)^3 - x^3",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        158,
+        120,
+        253,
+        683
+      ]
+    },
+    {
+      "n": 5,
+      "latex": "u^3 x^3 + u^2 x^3 \\frac{du}{dx} = x^3 (u^3 - 1)",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        212,
+        250,
+        302,
+        735
+      ]
+    },
+    {
+      "n": 6,
+      "latex": "u^2 x^3 \\frac{du}{dx} = u^3 - 1 - u^3",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        283,
+        306,
+        375,
+        703
+      ]
+    },
+    {
+      "n": 7,
+      "latex": "u^2 x \\frac{du}{dx} = -1",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        346,
+        304,
+        451,
+        536
+      ]
+    },
+    {
+      "n": 8,
+      "latex": "u^2 du = -\\frac{1}{x} dx",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        415,
+        371,
+        497,
+        640
+      ]
+    },
+    {
+      "n": 9,
+      "latex": "\\int u^2 du = \\int -\\frac{1}{x} dx",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        457,
+        361,
+        552,
+        628
+      ]
+    },
+    {
+      "n": 10,
+      "latex": "\\frac{u^3}{3} = -\\ln|x| + C_1",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        517,
+        375,
+        614,
+        679
+      ]
+    },
+    {
+      "n": 11,
+      "latex": "u^3 = -3 \\ln|x| + C, C = 3 C_1",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null,
+      "box": [
+        575,
+        379,
+        669,
+        824
+      ]
+    },
+    {
+      "n": 12,
+      "latex": "(\\frac{y}{x})^3 = 3\\ln|x| + C",
+      "readable": true,
+      "verdict": "error",
+      "comment": "Sign slip: this should be -3 ln|x| + C.",
+      "correct_latex": "\\left(\\frac{y}{x}\\right)^3 = -3\\ln|x| + C",
+      "box": [
+        629,
+        355,
+        710,
+        681
+      ]
+    },
+    {
+      "n": 13,
+      "latex": "y^3 = 3 x^3 \\ln|x| + C x^3",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null,
+      "box": [
+        676,
+        390,
+        763,
+        785
+      ]
+    },
+    {
+      "n": 14,
+      "latex": "y(1) = 2",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null,
+      "box": [
+        739,
+        347,
+        805,
+        509
+      ]
+    },
+    {
+      "n": 15,
+      "latex": "8 = 3(1) \\ln|1| + C(1)",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null,
+      "box": [
+        770,
+        362,
+        855,
+        716
+      ]
+    },
+    {
+      "n": 16,
+      "latex": "8 = C",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null,
+      "box": [
+        826,
+        372,
+        905,
+        554
+      ]
+    },
+    {
+      "n": 17,
+      "latex": "y^3 = 3x^3 \\ln|x| + 8x^3",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null,
+      "box": [
+        878,
+        351,
+        971,
+        756
+      ]
+    }
+  ],
+  "first_error_line": 12,
+  "error_type": "sign",
+  "final_answer": {
+    "matches_reference": "no",
+    "student_latex": "y^3 = 3x^3 \\ln|x| + 8x^3",
+    "reference_latex": "y^3 = 8x^3 - 3x^3 \\ln|x|"
+  },
+  "method_ok": true,
+  "reference_source": "ai_solved",
+  "solve_runs_agree": true,
+  "summary": "Method is right. One sign slip at line 12 changes the final answer.",
+  "model": "demo"
+}

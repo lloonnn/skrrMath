@@ -8,7 +8,8 @@
       "readable": true,
       "verdict": "ok",
       "comment": "",
-      "correct_latex": null
+      "correct_latex": null,
+      "box": null
     },
     {
       "n": 2,
@@ -16,7 +17,8 @@
       "readable": true,
       "verdict": "ok",
       "comment": "",
-      "correct_latex": null
+      "correct_latex": null,
+      "box": null
     },
     {
       "n": 3,
@@ -24,7 +26,8 @@
       "readable": true,
       "verdict": "ok",
       "comment": "",
-      "correct_latex": null
+      "correct_latex": null,
+      "box": null
     }
   ],
   "first_error_line": null,

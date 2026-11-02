@@ -10,6 +10,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "./src"),
+      "@shared": resolve(import.meta.dirname, "../shared/src"),
+      "@fixtures": resolve(import.meta.dirname, "../fixtures"),
     },
   },
+  // shared/ and fixtures/ sit outside web/
+  server: { fs: { allow: [".."] } },
 })

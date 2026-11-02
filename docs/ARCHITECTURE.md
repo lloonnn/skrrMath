@@ -105,7 +105,7 @@ Files: PDFs and pasted images go to private storage under the owner's id. The sh
 3. The AI transcribes, then solves or compares, then marks (see MARKING.md).
 4. The result is saved to `markings` and drawn on the marking layer.
 
-**Look up the bank (stage two).** On "mark", look up course, year and question number. If a bank answer exists, send it as the reference and show its trust level. If not, mark by AI reasoning and show "Not verified".
+**Look up the bank (stage two).** On "mark", look up course, year and question number. If a bank answer exists, send it as the reference and show its trust level. If not, mark by AI reasoning and show "AI-checked".
 
 **Export.** Render each page with the marking layer to an image, then build a PDF in the browser.
 

@@ -104,7 +104,7 @@ Rules for the test files:
 2. The pipeline from `docs/MARKING.md`: transcribe, solve independently twice, check lines, mark the first error, set statuses.
 3. Validate the reply against the shared schema. On invalid JSON, retry once, then return status `unreadable`.
 4. Rules in code, not only in the prompt: at most one `error` line (the first), lines after it that are not ok become `follows_from_error`, and if the two solves disagree the status is `unsure` and the final answer is not judged.
-5. UI: Mark button on each block, red-pen margin marks, the "Not verified" label, the "what it read" view, a switch to hide marks, saving the result with the block.
+5. UI: Mark button on each block, red-pen margin marks, the "AI-checked" label, the "what it read" view, a switch to hide marks, saving the result with the block.
 6. Demo fixtures: a saved marking result for one made-up question.
 
 **Automated tests**
@@ -119,7 +119,7 @@ Rules for the test files:
 - Optional live test (off by default, needs a key): mark the owner's page 2 image and assert the first error is the sign line and the status is `marked`.
 
 **Manual tests**
-1. In `demo` mode: mark the example. Check the marks appear in the margin beside the right lines, the label reads "Not verified", "what it read" opens, and the switch hides the marks.
+1. In `demo` mode: mark the example. Check the marks appear in the margin beside the right lines, the label reads "AI-checked", "what it read" opens, and the switch hides the marks.
 2. With your key or Replit credits, run page 1, page 2 and page 4 with their questions cropped back in. Compare to the expected results in `docs/MARKING.md`. Record each as pass or fail.
 3. Look at the usage page after five markings. Write the cost per marking in `docs/TEST-LOG.md`. Also write the time per step (transcribe, solve, mark) and the total. Mark it a fail if a full marking takes longer than 30 seconds without a progress display.
 4. Write one line badly on purpose. Check it says it cannot read the line and does not judge it.
@@ -268,7 +268,7 @@ flowchart TD
 2. Drop PDF export.
 3. At the cut line, skip the bank and hardening extras, and go to day 8.
 
-Never skip the "Not verified" label, the access rules, or the secrets check.
+Never skip the "AI-checked" label, the access rules, or the secrets check.
 
 ## Cost log
 

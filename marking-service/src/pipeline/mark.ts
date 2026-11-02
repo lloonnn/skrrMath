@@ -2,9 +2,10 @@ import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
 import type { ModelCall, ModelClient } from "../providers/types.ts"
 import type { Engine, MarkRequest } from "../types.ts"
-import { EQUIV_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 import {
   assemble,
+  matchBoxes,
   solvesAgree,
   unreadableResult,
   type MarkOutput,
@@ -16,6 +17,7 @@ const transcriptionSchema = z.object({
   lines: z.array(z.object({ n: z.number().int(), latex: z.string(), readable: z.boolean() })),
 })
 const solveSchema = z.object({ final_answer_latex: z.string() })
+const locateSchema = z.array(z.object({ text: z.string(), box_2d: z.array(z.number()).length(4) }))
 const equivSchema = z.object({ equivalent: z.boolean() })
 const markSchema = z.object({
   lines: z.array(
@@ -75,6 +77,15 @@ export async function markWithModel(
   )
   if (!t || t.lines.length === 0) return unreadableResult(model, t?.question_restated ?? "")
 
+  // 1b. Locate the lines, for position only. A failure here is not fatal:
+  // the result then has no boxes and the margin note is used.
+  const located = await callJson(
+    client,
+    { system: LOCATE_SYSTEM, prompt: "Locate each handwritten line.", images: [req.answerImage], thinking: "low" },
+    locateSchema
+  )
+  const boxes = located ? matchBoxes(located, t.lines.length) : null
+
   // 2. Reference: a verified answer, or solve independently without the student's work.
   let referenceText: string
   let referenceImages = [] as MarkRequest["blockImage"][]
@@ -128,5 +139,5 @@ export async function markWithModel(
   )
   if (!m) return unreadableResult(model, t.question_restated, "Could not mark this answer.")
 
-  return assemble(t, m, { referenceSource: source, solveRunsAgree: agree, model })
+  return assemble(t, m, { referenceSource: source, solveRunsAgree: agree, model, boxes })
 }

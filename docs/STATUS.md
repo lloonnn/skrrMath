@@ -18,11 +18,21 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 | Day 0 check: Gemini can locate handwritten lines | Passed on one page |
 | Day 0 checks: Supabase limits, school terms | Skipped by the owner |
 | Day 1: sidebar in `web/` | Done (sidebar only, light mode, made-up sample data). Build passes. Not seen in a browser by Claude. |
+| Day 2: answer region and course-code cleanup | Done as pure functions in `shared/src/blocks.ts` with tests (51 tests in `shared/` now). Not used by `web/` yet. Course-code pattern is a guess. Answers that continue onto the next page are not handled. |
+| Day 3: marking display (version 2, per-line marks) | Built. `marking-service` now has a locate step (position only, boxes matched to lines by order, only when the counts are equal, 2 percent padding). Result lines have a `box`. `shared/src/marking-view.ts` has `lineMarks` (cross on the error, "follows" notes, a tick at the end of each run of good lines, a can't-read note). `web/` draws them beside the page image. Falls back to the one-note margin when any line has no box. Tests: 62 in `shared/`, 40 in `marking-service/`. Screenshot checked in headless Chrome on the demo. |
 | Day 1: canvas | Excalidraw added to `web/` (`src/features/canvas/note-canvas.tsx`), light theme, no save or load. Build passes. Not seen in a browser by Claude. Pen feel on the tablet not tested. |
 | Day 1: Supabase sign-in, save and load, tablet to laptop sync | Not started. No Supabase project exists yet. |
 | `shared/` marking schema and fixtures | Done. Zod schema and rules in `shared/src/marking.ts`, four made-up fixtures in `fixtures/marking/`, 26 Vitest tests pass (`npm test` in `shared/`). Not yet imported by `web/` or `marking-service/`. |
 | `marking-service/` | `demo` and `google` providers, pipeline, rules, limits and rate limit built. 30 Vitest tests pass with a mock model (`npm test` there). Demo mode smoke-tested by curl. The `google` provider ran twice live on page 2 (see `docs/TEST-LOG.md`): works, but the first error moved between runs (line 12, then line 10) because the minus on line 10 was read differently. About 32 s per marking. Cost not measured. The auth check is a dev token. `replit` provider built (same Google SDK with Replit's base URL), tests pass, never run on Replit. Supabase auth not built. |
 | Tests (Vitest, Playwright) | Not set up |
+
+## To do before the project is finished
+
+- Remove the demo note in the marking panel ("Demo: marks a saved example page ... Nothing is sent to an AI."). It is in `web/src/features/marking/marking-margin.tsx`. The owner asked for this. The hosted demo may keep a short "Example only" note instead.
+
+## Parked
+
+- Replit run of the marking service. The Replit app `skrrmath-marking` is imported. Run command that works so far: `cd shared && npm install && cd ../marking-service && npm install && npx tsx src/server.ts`. It stops at "Gemini integration variables not present". Needed: connect the Gemini integration to that app (Connectors panel, or ask Replit Agent), and set secrets `AI_PROVIDER=replit`, `GEMINI_MODEL`, `MARK_DEV_TOKEN`. Then run page 2 several times (see task 2 below).
 
 ## Next tasks, in order
 
@@ -42,6 +52,10 @@ Beyond the shape in `docs/MARKING.md`, `shared/` enforces these. They are my rea
 - Extra fields are rejected.
 - Bank trust levels (stage two) are not modelled yet.
 - An `unsure` result may still name a line error (only the final answer is not judged). Changed from my first version, which was stricter than `docs/MARKING.md`.
+
+## Demo example is hand-set
+
+`fixtures/marking/ode-page2-demo.json` is not a raw model result. Its transcription and boxes come from one real run on the owner's page 2 (model from `.env`, reported as flash-lite). Its verdicts were set by hand to the owner's expected reading in `docs/MARKING.md` (first error at line 12). The raw run put the first error at line 5, from a misread of line 5. So the lines "what it read" shows for lines 5 and 6 may be misreads. The label says "AI-checked". Do not present it as model output.
 
 ## Marking service rules in code
 
@@ -69,10 +83,12 @@ Answers: not received yet.
 
 ## Decisions made
 
+- 2026-11-02, owner: the label for an AI-only mark is "AI-checked" (was "Not verified"). It does not mean correct. "Verified by AI" was rejected as misleading. Rules in `CLAUDE.md`, `docs/MARKING.md` and the tests were changed to match.
+- 2026-11-02, owner: the right panel opens and closes with a button in the header. That replaces the hide-marks button and the eye icon. Closing the panel hides the marks and keeps them for when it reopens. Marks sit on the page image beside each line. The panel is white and full height. The reference answer is shown as maths (KaTeX, MIT) when the student's answer does not match: "Expected answer" for an AI reference (the "AI-checked" label sits under it), "Correct answer" for a verified one.
 - MVP is plan days 1 to 5. The shared course bank is stage two. It is cut if behind on day 6.
 - Math is the demo subject. Answers are handwritten. Theory and handwritten code come later.
 - Marks look like a teacher with a red pen in the margin, with a hideable marking layer. No chat panel, badges or cards.
-- Every mark says how it was produced. "Not verified" unless it was marked against a verified answer. The owner said not to worry if nobody verifies answers.
+- Every mark says how it was produced. "AI-checked" unless it was marked against a verified answer. The owner said not to worry if nobody verifies answers.
 - A verified-answer area per question: handwrite, paste an image, or type.
 - Handwriting is stored as strokes. Notes must sync between the owner's tablet and laptop, so cloud storage and sign-in are needed from the start.
 - Model: Gemini, kept as one setting. Marking steps: transcribe literally, solve independently twice, mark the first error, mark later lines as following from the error.

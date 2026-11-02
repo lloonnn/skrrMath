@@ -21,7 +21,7 @@ How this addresses the problems:
 
 - **No more upload and scroll.** Students write and mark in the same place. The correction stays beside the answer it belongs to, and each paper keeps its own corrections.
 - **Immediate feedback without waiting for a lecturer.** Students can check their work at any time. This eases the pressure on lecturers near an examination.
-- **Honest marking.** Every mark states how it was produced. "Not verified" means the AI marked from its own reasoning. When a verified answer exists, the AI marks against it and the label changes. The app is a study aid and does not replace a teacher.
+- **Honest marking.** Every mark states how it was produced. "AI-checked" means the AI marked from its own reasoning. When a verified answer exists, the AI marks against it and the label changes. The app is a study aid and does not replace a teacher.
 
 ## Features
 

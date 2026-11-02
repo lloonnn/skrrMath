@@ -6,7 +6,9 @@
   ],
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../shared/src/*"],
+      "@fixtures/*": ["../fixtures/*"]
     }
   }
 }
