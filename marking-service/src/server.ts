@@ -1,6 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { ConfigError, loadConfig, type Config } from "./config.ts"
-import { bearerToken, createDevVerifier, type Verifier } from "./middleware/auth.ts"
+import {
+  bearerToken,
+  createDevVerifier,
+  createSupabaseVerifier,
+  type Verifier,
+} from "./middleware/auth.ts"
 import { createRateLimiter } from "./middleware/rate-limit.ts"
 import { createModelEngine } from "./pipeline/mark.ts"
 import { createDemoEngine } from "./providers/demo.ts"
@@ -103,7 +108,10 @@ if (import.meta.filename === process.argv[1]) {
     buildServer({
       config,
       engine: engineFromConfig(config),
-      verify: createDevVerifier(config.devToken!),
+      verify:
+        config.auth === "supabase"
+          ? createSupabaseVerifier(config.supabaseUrl!, config.supabaseAnonKey!)
+          : createDevVerifier(config.devToken!),
     }).listen(config.port, () => console.log(`marking-service on :${config.port} (provider ${config.provider})`))
   } catch (e) {
     if (e instanceof ConfigError) {

@@ -65,7 +65,7 @@ export type SceneBlock = {
   // 1, 2, 3 from the top of the canvas
   number: number
   region: Region
-  // Pen strokes whose middle sits inside the answer region
+  // Pen strokes and text whose middle sits inside the answer region
   strokes: number
 }
 
@@ -78,7 +78,8 @@ export function blocksFromScene(elements: readonly SceneElement[]): SceneBlock[]
     .filter((e) => e.type === "image")
     .sort((a, b) => a.y - b.y || a.x - b.x)
   const blocks: Block[] = images.map((e) => ({ id: e.id, page: 1, x: e.x, y: e.y, width: e.width, height: e.height }))
-  const strokes = live.filter((e) => e.type === "freedraw")
+  // Writing: pen strokes and typed text. Pasted images are questions, not answers.
+  const strokes = live.filter((e) => e.type === "freedraw" || e.type === "text")
   return blocks.map((b, i) => {
     const region = answerRegion(b, blocks, [CANVAS_PAGE])
     const count = region.overlaps
@@ -89,4 +90,21 @@ export function blocksFromScene(elements: readonly SceneElement[]): SceneBlock[]
         }).length
     return { id: b.id, number: i + 1, region, strokes: count }
   })
+}
+
+// Which elements make up a question's answer: everything inside its region, except
+// pasted images (those are questions). Sent to be drawn as one picture for marking.
+export function answerElementIds(
+  elements: readonly SceneElement[],
+  block: Pick<SceneBlock, "region">
+): string[] {
+  const r = block.region
+  if (r.overlaps || r.height <= 0) return []
+  return elements
+    .filter((e) => !e.isDeleted && e.type !== "image")
+    .filter((e) => {
+      const mid = e.y + e.height / 2
+      return mid >= r.y && mid < r.y + r.height
+    })
+    .map((e) => e.id)
 }

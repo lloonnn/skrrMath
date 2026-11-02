@@ -2,7 +2,8 @@ import * as React from "react"
 
 import type { ActivePaper, SceneBlock } from "@shared/index.ts"
 import { Button } from "@/components/ui/button"
-import { markDemo } from "@/features/marking/demo-marking"
+import { MARK_MODE, markBlock } from "@/features/marking/mark-service"
+import type { Scene } from "@/features/canvas/note-canvas"
 import {
   QuestionSection,
   canMark,
@@ -20,11 +21,14 @@ export function MarkingMargin({
   blocks,
   paper,
   signedIn,
+  getScene,
 }: {
   open: boolean
   blocks: SceneBlock[]
   paper: ActivePaper | null
   signedIn: boolean
+  // The note as it is now, read when Mark is pressed.
+  getScene: () => Scene | null
 }) {
   const [width, setWidth] = React.useState(DEFAULT_WIDTH)
   // The marking state of each question, by its block id.
@@ -34,11 +38,20 @@ export function MarkingMargin({
     setStates((all) => ({ ...all, [id]: s }))
 
   async function markOne(id: string) {
+    const block = blocks.find((b) => b.id === id)
+    if (!block || !paper) return
     set(id, { phase: "working" })
     try {
-      set(id, { phase: "done", result: await markDemo() })
-    } catch {
-      set(id, { phase: "failed" })
+      const marked = await markBlock(getScene(), block, paper)
+      set(id, { phase: "done", ...marked })
+    } catch (e) {
+      set(id, {
+        phase: "failed",
+        message:
+          e instanceof Error && e.message
+            ? e.message
+            : "Marking failed. Nothing was changed.",
+      })
     }
   }
 
@@ -122,7 +135,7 @@ export function MarkingMargin({
             onMark={() => markOne(b.id)}
           />
         ))}
-        {blocks.length > 0 && (
+        {blocks.length > 0 && MARK_MODE === "demo" && (
           <p className="text-xs text-muted-foreground">
             Demo: Mark shows a saved example page, not your writing. Nothing is
             sent to an AI.

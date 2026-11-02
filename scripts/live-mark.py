@@ -1,11 +1,15 @@
 """Send one marking request to a running marking-service. Costs real AI calls.
 Usage: python3 scripts/live-mark.py QUESTION_TEXT ANSWER_IMAGE [out.json]
-Reads MARK_DEV_TOKEN and PORT from .env. Never prints them."""
-import base64, io, json, sys, time, urllib.request, urllib.error
+Reads MARK_DEV_TOKEN and PORT from .env (or from the shell). Needs a service started with MARK_AUTH=dev.
+Never prints them."""
+import base64, io, json, os, sys, time, urllib.request, urllib.error
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 env = dict(l.split("=", 1) for l in Path(".env").read_text().splitlines() if "=" in l and not l.startswith("#"))
+# PORT and MARK_DEV_TOKEN from the shell win, so a test copy of the service can use its own.
+for k in ("PORT", "MARK_DEV_TOKEN"):
+    if k in os.environ: env[k] = os.environ[k]
 q = Image.new("RGB", (900, 120), "white")
 d = ImageDraw.Draw(q)
 d.text((20, 20), sys.argv[1], fill="black", font=ImageFont.load_default(size=26))

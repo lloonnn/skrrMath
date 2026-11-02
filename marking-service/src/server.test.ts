@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ConfigError, loadConfig } from "./config.ts"
-import { createDevVerifier } from "./middleware/auth.ts"
+import { createDevVerifier, createSupabaseVerifier } from "./middleware/auth.ts"
 import { createDemoEngine } from "./providers/demo.ts"
 import { buildServer, engineFromConfig } from "./server.ts"
 import type { Config } from "./config.ts"
@@ -30,6 +30,10 @@ describe("loadConfig", () => {
       loadConfig({ ...baseEnv, AI_PROVIDER: "replit", GEMINI_MODEL: "m", AI_INTEGRATIONS_GEMINI_BASE_URL: "u", AI_INTEGRATIONS_GEMINI_API_KEY: "k" }).provider
     ).toBe("replit"))
   it("needs a dev token", () => expect(() => loadConfig({ AI_PROVIDER: "demo" })).toThrow(/MARK_DEV_TOKEN/))
+  it("accepts supabase auth with its url and key, and no dev token", () =>
+    expect(loadConfig({ AI_PROVIDER: "demo", MARK_AUTH: "supabase", SUPABASE_URL: "https://x.supabase.co", SUPABASE_ANON_KEY: "k" }).auth).toBe("supabase"))
+  it("supabase auth needs its url and key", () =>
+    expect(() => loadConfig({ AI_PROVIDER: "demo", MARK_AUTH: "supabase" })).toThrow(/SUPABASE_URL/))
   it("rejects a bad number", () =>
     expect(() => loadConfig({ ...baseEnv, MARK_SOLVE_RUNS: "0" })).toThrow(/MARK_SOLVE_RUNS/))
 })
@@ -126,5 +130,50 @@ describe("dev verifier", () => {
     expect(await v("secret-token")).toEqual({ userId: "dev" })
     expect(await v("secret-tokeN")).toBeNull()
     expect(await v("short")).toBeNull()
+  })
+})
+
+describe("supabase verifier", () => {
+  const ok = (id: unknown) => (async () => new Response(JSON.stringify({ id }), { status: 200 })) as unknown as typeof fetch
+  it("returns the user id for a good token", async () => {
+    const v = createSupabaseVerifier("https://x.supabase.co", "anon", ok("user-1"))
+    expect(await v("tok")).toEqual({ userId: "user-1" })
+  })
+  it("sends the anon key and the token, to the auth user url", async () => {
+    let seen: { url: string; init: RequestInit } | null = null
+    const f = (async (url: string, init: RequestInit) => { seen = { url, init }; return new Response(JSON.stringify({ id: "u" })) }) as unknown as typeof fetch
+    await createSupabaseVerifier("https://x.supabase.co/", "anon-key", f)("the-token")
+    expect(seen!.url).toBe("https://x.supabase.co/auth/v1/user")
+    expect(seen!.init.headers).toMatchObject({ apikey: "anon-key", authorization: "Bearer the-token" })
+  })
+  it("refuses a token Supabase rejects", async () => {
+    const f = (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch
+    expect(await createSupabaseVerifier("https://x", "k", f)("bad")).toBeNull()
+  })
+  it("refuses when Supabase cannot be reached (fails closed)", async () => {
+    const f = (async () => { throw new Error("down") }) as unknown as typeof fetch
+    expect(await createSupabaseVerifier("https://x", "k", f)("tok")).toBeNull()
+  })
+  it("refuses an answer with no id", async () => {
+    expect(await createSupabaseVerifier("https://x", "k", ok(undefined))("tok")).toBeNull()
+    expect(await createSupabaseVerifier("https://x", "k", ok(""))("tok")).toBeNull()
+  })
+  it("remembers a good token for a minute, then asks again", async () => {
+    let calls = 0
+    const f = (async () => { calls++; return new Response(JSON.stringify({ id: "u" })) }) as unknown as typeof fetch
+    let t = 1000
+    const v = createSupabaseVerifier("https://x", "k", f, () => t)
+    await v("tok"); await v("tok")
+    expect(calls).toBe(1)
+    t += 61_000
+    await v("tok")
+    expect(calls).toBe(2)
+  })
+  it("does not remember a refused token", async () => {
+    let calls = 0
+    const f = (async () => { calls++; return new Response("{}", { status: 401 }) }) as unknown as typeof fetch
+    const v = createSupabaseVerifier("https://x", "k", f)
+    await v("bad"); await v("bad")
+    expect(calls).toBe(2)
   })
 })

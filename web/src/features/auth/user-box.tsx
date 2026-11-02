@@ -55,7 +55,12 @@ export function UserBox({ session }: { session: Session | null }) {
     setMessage(null)
     const creds = { email: email.trim(), password }
     const { data, error } = create
-      ? await supabase!.auth.signUp(creds)
+      ? await supabase!.auth.signUp({
+          ...creds,
+          // The confirmation link comes back to the address you are using now (laptop or
+          // tablet). That address must also be listed under Redirect URLs in Supabase.
+          options: { emailRedirectTo: window.location.origin },
+        })
       : await supabase!.auth.signInWithPassword(creds)
     setBusy(false)
     if (error) setMessage(error.message)

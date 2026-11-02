@@ -20,7 +20,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { MarkingMargin } from "@/features/marking/marking-margin"
-import { NoteCanvas } from "@/features/canvas/note-canvas"
+import { NoteCanvas, type Scene } from "@/features/canvas/note-canvas"
 import { usePaperTree } from "@/features/papers/use-paper-tree"
 import { useSession } from "@/features/auth/use-session"
 import {
@@ -67,6 +67,8 @@ export function App() {
   const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null)
   const [marginOpen, setMarginOpen] = React.useState(true)
   const [blocks, setBlocks] = React.useState<SceneBlock[]>([])
+  // The note as it is now. Read when Mark is pressed, so it is a ref, not state.
+  const latestScene = React.useRef<Scene | null>(null)
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null)
 
   const activePaper = findPaper(tree, activeNoteId)
@@ -180,6 +182,7 @@ export function App() {
         tree={tree}
         activeId={activePaper ? activeNoteId : null}
         onOpen={(id) => {
+          latestScene.current = null
           setBlocks([])
           setActiveNoteId(id)
         }}
@@ -229,7 +232,10 @@ export function App() {
                   <NoteCanvas
                     key={activeNoteId}
                     initial={note.initial}
-                    onScene={note.onScene}
+                    onScene={(scene) => {
+                      latestScene.current = scene
+                      note.onScene(scene)
+                    }}
                     onBlocks={setBlocks}
                   />
                 ) : (
@@ -253,6 +259,7 @@ export function App() {
             blocks={blocks}
             paper={activePaper}
             signedIn={session !== null}
+            getScene={() => latestScene.current}
           />
         </div>
       </SidebarInset>

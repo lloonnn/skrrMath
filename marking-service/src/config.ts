@@ -10,6 +10,8 @@ export type Config = {
   solveRuns: number
   auth: "dev" | "supabase"
   devToken: string | null
+  supabaseUrl: string | null
+  supabaseAnonKey: string | null
   allowedOrigin: string
   ratePerMinute: number
   maxBodyBytes: number
@@ -45,8 +47,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 
   const auth = env.MARK_AUTH || "dev"
   if (auth !== "dev" && auth !== "supabase") throw new ConfigError(`MARK_AUTH must be dev or supabase (got "${auth}")`)
-  if (auth === "supabase") throw new ConfigError("MARK_AUTH=supabase is not built yet (no Supabase project)")
-  if (!env.MARK_DEV_TOKEN) throw new ConfigError("MARK_AUTH=dev needs MARK_DEV_TOKEN (any long random string)")
+  if (auth === "supabase" && (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY))
+    throw new ConfigError("MARK_AUTH=supabase needs SUPABASE_URL and SUPABASE_ANON_KEY")
+  if (auth === "dev" && !env.MARK_DEV_TOKEN) throw new ConfigError("MARK_AUTH=dev needs MARK_DEV_TOKEN (any long random string)")
 
   return {
     provider,
@@ -56,7 +59,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     replitKey: env.AI_INTEGRATIONS_GEMINI_API_KEY || null,
     solveRuns: int(env, "MARK_SOLVE_RUNS", 2),
     auth,
-    devToken: env.MARK_DEV_TOKEN,
+    devToken: env.MARK_DEV_TOKEN || null,
+    supabaseUrl: env.SUPABASE_URL || null,
+    supabaseAnonKey: env.SUPABASE_ANON_KEY || null,
     allowedOrigin: env.APP_URL || "http://localhost:5173",
     ratePerMinute: int(env, "MARK_RATE_PER_MIN", 10),
     maxBodyBytes: int(env, "MARK_MAX_BODY_BYTES", 8_000_000),

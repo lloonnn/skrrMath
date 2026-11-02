@@ -2,13 +2,13 @@ import {
   lineMarks,
   marginView,
   type ActivePaper,
-  type MarkingResult,
   type SceneBlock,
 } from "@shared/index.ts"
 import {
+  MARK_MODE,
   MARK_NEEDS_SIGN_IN,
-  demoPageImage,
-} from "@/features/marking/demo-marking"
+  type Marked,
+} from "@/features/marking/mark-service"
 import { Latex } from "@/features/marking/latex"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,8 +20,8 @@ import {
 export type MarkState =
   | { phase: "idle" }
   | { phase: "working" }
-  | { phase: "done"; result: MarkingResult }
-  | { phase: "failed" }
+  | ({ phase: "done" } & Marked)
+  | { phase: "failed"; message: string }
 
 // Can this question be marked now? Used by its own button and by Mark all.
 export function canMark(
@@ -32,7 +32,9 @@ export function canMark(
   return (
     paper !== null &&
     !(MARK_NEEDS_SIGN_IN && !signedIn) &&
-    !block.region.overlaps
+    !block.region.overlaps &&
+    // Real marking needs something to read. The demo does not.
+    (MARK_MODE === "demo" || block.strokes > 0)
   )
 }
 
@@ -84,6 +86,15 @@ export function QuestionSection({
         </Button>
       </div>
 
+      {MARK_MODE === "service" &&
+        paper &&
+        block.strokes === 0 &&
+        !block.region.overlaps && (
+          <p className="text-xs text-muted-foreground">
+            Write your answer below the question image first.
+          </p>
+        )}
+
       {needsSignIn && (
         <p className="text-xs text-muted-foreground">
           Sign in (bottom of the left list) to mark.
@@ -91,13 +102,17 @@ export function QuestionSection({
       )}
 
       {state.phase === "failed" && (
-        <p className="text-red-700">Marking failed. Nothing was changed.</p>
+        <p className="text-red-700">{state.message}</p>
       )}
 
-      {result && view && (
+      {state.phase === "done" && result && view && (
         <>
           <div className="relative border">
-            <img src={demoPageImage} alt="The marked page" className="w-full" />
+            <img
+              src={state.imageUrl}
+              alt="The marked page"
+              className="w-full"
+            />
             <p className="absolute right-2 bottom-1 text-xs text-muted-foreground">
               {view.label}
             </p>

@@ -70,7 +70,7 @@ describe("normaliseCourseCode", () => {
     expect(normaliseCourseCode(s)).toBeNull())
 })
 
-import { blocksFromScene, type SceneElement } from "./blocks.ts"
+import { answerElementIds, blocksFromScene, type SceneElement } from "./blocks.ts"
 
 const el = (id: string, type: string, y: number, height = 50, extra: Partial<SceneElement> = {}): SceneElement => ({
   id, type, x: 0, y, width: 100, height, ...extra,
@@ -105,5 +105,33 @@ describe("blocksFromScene", () => {
     const r = blocksFromScene([el("q1", "image", 0, 100), el("q2", "image", 50, 100), el("s", "freedraw", 120, 10)])
     expect(r[0].region.overlaps).toBe(true)
     expect(r[0].strokes).toBe(0)
+  })
+})
+
+describe("writing and answerElementIds", () => {
+  it("typed text counts as writing", () => {
+    const r = blocksFromScene([el("q", "image", 0, 50), el("t", "text", 100, 20)])
+    expect(r[0].strokes).toBe(1)
+  })
+  it("a shape does not count as writing", () => {
+    const r = blocksFromScene([el("q", "image", 0, 50), el("sq", "rectangle", 100, 20)])
+    expect(r[0].strokes).toBe(0)
+  })
+  it("picks the elements below the question, up to the next question, and not the images", () => {
+    const all = [
+      el("q1", "image", 0, 50), el("a", "freedraw", 100, 20), el("b", "text", 150, 20),
+      el("q2", "image", 300, 50), el("c", "freedraw", 400, 20),
+    ]
+    const blocks = blocksFromScene(all)
+    expect(answerElementIds(all, blocks[0]).sort()).toEqual(["a", "b"])
+    expect(answerElementIds(all, blocks[1])).toEqual(["c"])
+  })
+  it("ignores deleted elements", () => {
+    const all = [el("q", "image", 0, 50), el("gone", "freedraw", 100, 20, { isDeleted: true })]
+    expect(answerElementIds(all, blocksFromScene(all)[0])).toEqual([])
+  })
+  it("gives nothing for overlapping questions", () => {
+    const all = [el("q1", "image", 0, 100), el("q2", "image", 50, 100), el("s", "freedraw", 120, 10)]
+    expect(answerElementIds(all, blocksFromScene(all)[0])).toEqual([])
   })
 })

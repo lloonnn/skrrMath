@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
       "process.env.IS_PREACT": JSON.stringify("false"),
       __SUPABASE_URL__: JSON.stringify(env.SUPABASE_URL ?? ""),
       __SUPABASE_ANON_KEY__: JSON.stringify(env.SUPABASE_ANON_KEY ?? ""),
+      // "demo" shows a saved example and calls no AI. "service" marks for real.
+      __MARK_MODE__: JSON.stringify(
+        env.MARK_MODE === "service" ? "service" : "demo"
+      ),
+      // Where the app sends a marking request. The dev server forwards this path.
+      __MARK_URL__: JSON.stringify(env.MARK_URL || "/api/mark"),
     },
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -24,6 +30,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     // shared/ and fixtures/ sit outside web/
-    server: { fs: { allow: [".."] } },
+    server: {
+      fs: { allow: [".."] },
+      // Same address for the laptop and the tablet, and no cross-site rules to set up.
+      proxy: { "/api/mark": `http://localhost:${env.PORT || 3001}` },
+    },
   }
 })
