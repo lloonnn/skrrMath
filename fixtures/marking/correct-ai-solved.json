@@ -1,0 +1,42 @@
+{
+  "status": "marked",
+  "question_restated": "Solve 2x + 6 = 14.",
+  "lines": [
+    {
+      "n": 1,
+      "latex": "2x + 6 = 14",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null
+    },
+    {
+      "n": 2,
+      "latex": "2x = 8",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null
+    },
+    {
+      "n": 3,
+      "latex": "x = 4",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null
+    }
+  ],
+  "first_error_line": null,
+  "error_type": null,
+  "final_answer": {
+    "matches_reference": "yes",
+    "student_latex": "x = 4",
+    "reference_latex": "x = 4"
+  },
+  "method_ok": true,
+  "reference_source": "ai_solved",
+  "solve_runs_agree": true,
+  "summary": "Correct working and answer.",
+  "model": "demo"
+}

@@ -1,0 +1,26 @@
+{
+  "status": "unsure",
+  "question_restated": "Made-up question where two solves differ.",
+  "lines": [
+    {
+      "n": 1,
+      "latex": "y = 3",
+      "readable": true,
+      "verdict": "not_checked",
+      "comment": "",
+      "correct_latex": null
+    }
+  ],
+  "first_error_line": null,
+  "error_type": null,
+  "final_answer": {
+    "matches_reference": "unknown",
+    "student_latex": "y = 3",
+    "reference_latex": null
+  },
+  "method_ok": null,
+  "reference_source": "ai_solved",
+  "solve_runs_agree": false,
+  "summary": "Two solutions disagree, so the final answer is not judged.",
+  "model": "demo"
+}

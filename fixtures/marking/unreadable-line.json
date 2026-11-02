@@ -1,0 +1,42 @@
+{
+  "status": "marked",
+  "question_restated": "Expand (x + 2)^2.",
+  "lines": [
+    {
+      "n": 1,
+      "latex": "(x + 2)^2 = (x+2)(x+2)",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null
+    },
+    {
+      "n": 2,
+      "latex": "",
+      "readable": false,
+      "verdict": "unreadable",
+      "comment": "Can't read this line, please check.",
+      "correct_latex": null
+    },
+    {
+      "n": 3,
+      "latex": "x^2 + 4x + 4",
+      "readable": true,
+      "verdict": "not_checked",
+      "comment": "",
+      "correct_latex": null
+    }
+  ],
+  "first_error_line": null,
+  "error_type": null,
+  "final_answer": {
+    "matches_reference": "yes",
+    "student_latex": "x^2 + 4x + 4",
+    "reference_latex": "x^2 + 4x + 4"
+  },
+  "method_ok": null,
+  "reference_source": "ai_solved",
+  "solve_runs_agree": true,
+  "summary": "Line 2 could not be read, so it is not judged.",
+  "model": "demo"
+}

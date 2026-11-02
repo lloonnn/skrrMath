@@ -1,0 +1,50 @@
+{
+  "status": "marked",
+  "question_restated": "Solve 3x - 5 = 10.",
+  "lines": [
+    {
+      "n": 1,
+      "latex": "3x - 5 = 10",
+      "readable": true,
+      "verdict": "ok",
+      "comment": "",
+      "correct_latex": null
+    },
+    {
+      "n": 2,
+      "latex": "3x = 10 - 5",
+      "readable": true,
+      "verdict": "error",
+      "comment": "Sign slip: add 5 to both sides.",
+      "correct_latex": "3x = 10 + 5"
+    },
+    {
+      "n": 3,
+      "latex": "3x = 5",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null
+    },
+    {
+      "n": 4,
+      "latex": "x = 5/3",
+      "readable": true,
+      "verdict": "follows_from_error",
+      "comment": "follows from the error",
+      "correct_latex": null
+    }
+  ],
+  "first_error_line": 2,
+  "error_type": "sign",
+  "final_answer": {
+    "matches_reference": "no",
+    "student_latex": "x = 5/3",
+    "reference_latex": "x = 5"
+  },
+  "method_ok": true,
+  "reference_source": "verified_user",
+  "solve_runs_agree": null,
+  "summary": "Method is right. One sign slip in line 2 changes the answer.",
+  "model": "demo"
+}
