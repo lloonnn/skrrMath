@@ -4,7 +4,8 @@ import type { ModelCall, ModelClient } from "../providers/types.ts"
 import { ModelUnavailableError } from "../providers/types.ts"
 import type { MarkRequest } from "../types.ts"
 import { markWithModel } from "./mark.ts"
-import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { Jimp } from "jimp"
+import { CROPS_SYSTEM, EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 
 const img = { mimeType: "image/png" as const, base64: "AAAA" }
 const req = (extra: Partial<MarkRequest> = {}): MarkRequest => ({
@@ -15,19 +16,19 @@ const req = (extra: Partial<MarkRequest> = {}): MarkRequest => ({
 })
 const opts = { solveRuns: 2, model: "mock-model" }
 
-type Step = "transcribe" | "solve" | "mark" | "equiv" | "locate"
+type Step = "transcribe" | "solve" | "mark" | "equiv" | "locate" | "crops"
 const stepOf = (c: ModelCall): Step =>
-  c.system === TRANSCRIBE_SYSTEM ? "transcribe" : c.system === SOLVE_SYSTEM ? "solve" : c.system === EQUIV_SYSTEM ? "equiv" : c.system === LOCATE_SYSTEM ? "locate" : (c.system === MARK_SYSTEM ? "mark" : (() => { throw new Error("unknown step") })())
+  c.system === TRANSCRIBE_SYSTEM ? "transcribe" : c.system === SOLVE_SYSTEM ? "solve" : c.system === EQUIV_SYSTEM ? "equiv" : c.system === LOCATE_SYSTEM ? "locate" : c.system === CROPS_SYSTEM ? "crops" : (c.system === MARK_SYSTEM ? "mark" : (() => { throw new Error("unknown step") })())
 
 // A scripted model. Each step has a queue of replies. The last one repeats.
 function mock(input: Partial<Record<Step, string[]>>) {
-  const script = { locate: ["[]"], equiv: [JSON.stringify({ equivalent: false })], ...input } as Record<Step, string[]>
+  const script = { locate: ["[]"], crops: ["[]"], equiv: [JSON.stringify({ equivalent: false })], ...input } as Record<Step, string[]>
   return mockFull(script)
 }
 function mockFull(script: Record<Step, string[]>) {
   const calls: Step[] = []
   const prompts: { step: Step; prompt: string }[] = []
-  const used: Record<Step, number> = { transcribe: 0, solve: 0, mark: 0, equiv: 0, locate: 0 }
+  const used: Record<Step, number> = { transcribe: 0, solve: 0, mark: 0, equiv: 0, locate: 0, crops: 0 }
   const client: ModelClient = {
     async generate(call) {
       const s = stepOf(call)
@@ -87,6 +88,79 @@ describe("a reference answer is one route, not the only one", () => {
   })
 })
 
+// A real, small, white picture, so that cutting lines out of it really runs.
+async function whitePng(): Promise<string> {
+  const img = new Jimp({ width: 400, height: 300, color: 0xffffffff })
+  return (await img.getBuffer("image/png")).toString("base64")
+}
+
+describe("each line is read as its own picture", () => {
+  const boxesFor = (n: number) =>
+    JSON.stringify(Array.from({ length: n }, (_, i) => ({ text: `l${i + 1}`, box_2d: [i * 250 + 100, 100, i * 250 + 200, 900] })))
+  const rd = (n: number, extra: Partial<Record<string, unknown>> = {}) =>
+    JSON.stringify({ question_restated: "Solve 3x - 5 = 10.", lines: Array.from({ length: n }, (_, i) => ({ n: i + 1, latex: `line ${i + 1}`, readable: true, ...extra })) })
+  const withImage = async () => req({ answerImage: { mimeType: "image/png", base64: await whitePng() } })
+
+  it("sends the question and one picture per line, in one call", async () => {
+    const seen: number[] = []
+    const { client } = mock({ locate: [boxesFor(4)], crops: [rd(4)], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    const spy = { generate: async (c: Parameters<typeof client.generate>[0]) => { if (c.system === CROPS_SYSTEM) seen.push(c.images.length); return client.generate(c) } }
+    await markWithModel(spy, await withImage(), opts)
+    expect(seen).toEqual([5]) // 1 question + 4 lines
+  })
+  it("uses the line-by-line reading as the transcription, and its boxes", async () => {
+    const { client, calls } = mock({ locate: [boxesFor(4)], crops: [rd(4)], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, await withImage(), opts)
+    expect(calls).not.toContain("transcribe") // the whole page was not read
+    expect(r.lines.map((l) => l.latex)).toEqual(["line 1", "line 2", "line 3", "line 4"])
+    expect(r.lines.every((l) => l.box !== null)).toBe(true)
+    expect(r.lines[0].box).toEqual([80, 80, 220, 920]) // each box matches its line, 2 percent added
+  })
+  it("reads the page as a whole when the pictures cannot be cut", async () => {
+    // the default test picture is not a real image, so cutting fails
+    const { client, calls } = mock({ locate: [boxesFor(4)], transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, req(), opts)
+    expect(calls).toContain("transcribe")
+    expect(calls).not.toContain("crops")
+    expect(r.status).toBe("marked")
+    expect(r.lines.every((l) => l.box !== null)).toBe(true) // still matched by order, 4 and 4
+  })
+  it("reads the page as a whole when locating finds nothing", async () => {
+    const { client, calls } = mock({ locate: ["[]"], transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    await markWithModel(client, await withImage(), opts)
+    expect(calls).toContain("transcribe")
+    expect(calls).not.toContain("crops")
+  })
+  it("tries the line-by-line reading once more when it has the wrong number of lines", async () => {
+    const { client, calls } = mock({ locate: [boxesFor(4)], crops: [rd(3), rd(4)], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, await withImage(), opts)
+    expect(calls.filter((c) => c === "crops")).toHaveLength(2)
+    expect(calls).not.toContain("transcribe") // the second try worked, so the page is not read whole
+    expect(r.lines.map((l) => l.latex)).toEqual(["line 1", "line 2", "line 3", "line 4"])
+  })
+  it("reads the page as a whole when both line-by-line replies have the wrong number of lines", async () => {
+    const { client, calls } = mock({ locate: [boxesFor(4)], crops: [rd(3)], transcribe: [transcription()], solve: [solve("x=5")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, await withImage(), opts)
+    expect(calls.filter((c) => c === "crops")).toHaveLength(2)
+    expect(calls).toContain("transcribe")
+    expect(r.lines.map((l) => l.latex)).toEqual(["3x - 5 = 10", "3x = 10 - 5", "3x = 5", "x = 5/3"])
+  })
+  it("keeps a line the model could not read as unreadable", async () => {
+    const reply = JSON.stringify({ question_restated: "q", lines: [{ n: 1, latex: "a", readable: true }, { n: 2, latex: "", readable: false }, { n: 3, latex: "c", readable: true }] })
+    const { client } = mock({ locate: [boxesFor(3)], crops: [reply], solve: [solve("x")], mark: [markOut([ml(1, "ok"), ml(2, "ok"), ml(3, "ok")], { error_type: null })] })
+    const r = await markWithModel(client, await withImage(), opts)
+    expect(r.lines[1]).toMatchObject({ verdict: "unreadable", readable: false })
+  })
+  it("reads the page as a whole when the line-by-line reading gives no usable reply", async () => {
+    // the "crops" reply is left as the mock default, which is not a valid reply
+    const two = JSON.stringify([{ text: "a", box_2d: [100, 100, 200, 900] }, { text: "b", box_2d: [400, 100, 500, 900] }])
+    const { client, calls } = mock({ locate: [two], transcribe: [transcription([line(1, "a"), line(2, "b")])], solve: [solve("x")], mark: [markOut([ml(1, "ok"), ml(2, "ok")], { error_type: null })] })
+    await markWithModel(client, await withImage(), opts)
+    expect(calls).toContain("crops")
+    expect(calls).toContain("transcribe")
+  })
+})
+
 describe("progress steps", () => {
   const steps = async (script: Parameters<typeof mock>[0], r: Partial<MarkRequest> = {}) => {
     const { client } = mock(script)
@@ -96,16 +170,16 @@ describe("progress steps", () => {
   }
   it("reports each step in order when the AI solves the question", async () => {
     expect(await steps({ transcribe: [transcription()], solve: [solve("x=5"), solve("x=5")], mark: [markOut(okLines)] })).toEqual([
-      "reading", "locating", "solving 1/2", "solving 2/2", "marking",
+      "locating", "reading", "solving 1/2", "solving 2/2", "marking",
     ])
   })
   it("adds a comparing step only when the two answers are written differently", async () => {
     const seen = await steps({ transcribe: [transcription()], solve: [solve("x=5"), solve("x = five")], equiv: [JSON.stringify({ equivalent: true })], mark: [markOut(okLines)] })
-    expect(seen).toEqual(["reading", "locating", "solving 1/2", "solving 2/2", "comparing", "marking"])
+    expect(seen).toEqual(["locating", "reading", "solving 1/2", "solving 2/2", "comparing", "marking"])
   })
   it("skips solving when a verified answer is given", async () => {
     expect(await steps({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] }, { verifiedAnswer: { kind: "text", text: "x = 5" } })).toEqual([
-      "reading", "locating", "marking",
+      "locating", "reading", "marking",
     ])
   })
   it("works without a listener", async () => {
@@ -254,7 +328,7 @@ describe("markWithModel", () => {
     const { client, calls } = mock({ transcribe: ["{oops"], solve: [solve("x")], mark: [markOut(okLines)] })
     const r = await markWithModel(client, req(), opts)
     expect(r.status).toBe("unreadable")
-    expect(calls).toEqual(["transcribe", "transcribe"])
+    expect(calls).toEqual(["locate", "transcribe", "transcribe"])
   })
 
   it("returns unreadable when every line is unreadable", async () => {

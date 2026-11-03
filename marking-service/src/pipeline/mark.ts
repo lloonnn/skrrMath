@@ -2,12 +2,15 @@ import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
 import { ModelUnavailableError, type ModelCall, type ModelClient } from "../providers/types.ts"
 import type { Engine, MarkRequest, ProgressStep } from "../types.ts"
-import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, REFERENCE_NOTE, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { CROPS_SYSTEM, EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, REFERENCE_NOTE, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { cropLines } from "./crop.ts"
 import {
   assemble,
   matchBoxes,
+  padBoxes,
   solvesAgree,
   unreadableResult,
+  type Box,
   type MarkOutput,
   type Transcription,
 } from "./rules.ts"
@@ -66,29 +69,59 @@ export async function markWithModel(
 ): Promise<MarkingResult> {
   const { model } = opts
 
-  // 1. Transcribe literally. Do not mark yet.
-  onStep({ step: "reading" })
-  const t = await callJson<Transcription>(
-    client,
-    {
-      system: TRANSCRIBE_SYSTEM,
-      prompt: `Question tags: ${req.tags.course} ${req.tags.year ?? ""} Q${req.tags.question}. Copy the student's answer.`,
-      images: [req.blockImage, req.answerImage],
-      thinking: "low",
-    },
-    transcriptionSchema
-  )
-  if (!t || t.lines.length === 0) return unreadableResult(model, t?.question_restated ?? "")
-
+  // 1. Find where each line is. This is for position, and also so that each line can be
+  // read as its own picture. A failure here is not fatal: the page is then read as a whole.
   onStep({ step: "locating" })
-  // 1b. Locate the lines, for position only. A failure here is not fatal:
-  // the result then has no boxes and the margin note is used.
   const located = await callJson(
     client,
     { system: LOCATE_SYSTEM, prompt: "Locate each handwritten line.", images: [req.answerImage], thinking: "low" },
     locateSchema
   )
-  const boxes = located ? matchBoxes(located, t.lines.length) : null
+  const padded = located ? padBoxes(located) : null
+  const crops = padded ? await cropLines(req.answerImage, padded) : null
+
+  // 2. Transcribe literally. Do not mark yet. Each line is read alone when it can be,
+  // because a model that sees the whole page tends to quietly fix the student's slips,
+  // and then the marker never sees them.
+  onStep({ step: "reading" })
+  let t: Transcription | null = null
+  let boxes: Box[] | null = null
+  if (crops && padded) {
+    // Twice at most: a reply with the wrong number of lines is not trusted, and one more
+    // try usually fixes it. Only then is the page read as a whole.
+    for (let attempt = 0; attempt < 2 && !t; attempt++) {
+      const byLine = await callJson<Transcription>(
+        client,
+        {
+          system: CROPS_SYSTEM,
+          prompt: `Question tags: ${req.tags.course} ${req.tags.year ?? ""} Q${req.tags.question}. Copy each line exactly.`,
+          images: [req.blockImage, ...crops],
+          thinking: "low",
+        },
+        transcriptionSchema
+      )
+      // One entry per picture, or it is not trusted.
+      if (byLine && byLine.lines.length === crops.length) {
+        t = { ...byLine, lines: byLine.lines.map((l, i) => ({ ...l, n: i + 1 })) }
+        boxes = padded
+      }
+    }
+  }
+  if (!t) {
+    // The whole page at once, with the boxes matched to the lines by order.
+    t = await callJson<Transcription>(
+      client,
+      {
+        system: TRANSCRIBE_SYSTEM,
+        prompt: `Question tags: ${req.tags.course} ${req.tags.year ?? ""} Q${req.tags.question}. Copy the student's answer.`,
+        images: [req.blockImage, req.answerImage],
+        thinking: "low",
+      },
+      transcriptionSchema
+    )
+    if (t && located) boxes = matchBoxes(located, t.lines.length)
+  }
+  if (!t || t.lines.length === 0) return unreadableResult(model, t?.question_restated ?? "")
 
   // 2. Reference: a verified answer, or solve independently without the student's work.
   let referenceText: string

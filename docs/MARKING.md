@@ -90,6 +90,18 @@ Version 1 puts one margin comment per block, with a tick or cross for the whole 
 
 Tested on 2026-11-01 on one page (the owner's page 2): Gemini returned 17 boxes in `[ymin, xmin, ymax, xmax]` on a 0 to 1000 scale, one per handwritten line, in order, and every box sat on the right line (see `img/locate-overlay-page2.png`). Small flaws: two boxes overlapped vertically where fractions were stacked, and one box clipped the right edge a little. So version 2 looks feasible. Add a margin of a few percent to each box, and test on more pages before relying on it.
 
+## Reading each line on its own
+
+Measured on 2026-11-03 on the owner's ODE page (`gemini-3.5-flash-lite`, 15 readings of each method): reading the whole page at once dropped the minus on line 10 in 4 of 15 readings, and only 6 of 17 lines read the same every time. Reading each line as its own small picture dropped it in 0 of 15, and 10 of 17 lines read the same every time. So the service now:
+1. finds the lines first (the locate step),
+2. cuts one picture per line (`jimp`, on the server),
+3. sends the question and all the line pictures in one call, told not to use the other lines to decide what a line says,
+4. uses the boxes and the lines one to one.
+
+If locating finds nothing, a picture cannot be cut, or the reply has the wrong number of lines twice, it reads the whole page as before and matches the boxes by order. The fallback is the weak spot: a run that fell back lost the minus again.
+
+Limit: the model still silently fixes the student's slip sometimes. On line 12 (the real slip) it kept the slip in 14 of 15 whole-page readings and 13 of 15 line-by-line readings. A second reading that must agree would flag about a quarter of those, but also about 12 percent of all lines, so it is not built (owner decision, 2026-11-03).
+
 ## Transcription must be literal
 
 On the same page, the line-locating call returned text in which the student's sign slip was silently corrected (the page says +3 ln, the returned text says -3 ln). The plain transcription call kept the sign as written. A marker that corrects the student while reading cannot find the student's mistake. Rules:

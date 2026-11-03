@@ -37,6 +37,8 @@ The idea started in a separate knowledge-base repo at `/home/sl/Desktop/vscfile/
 
 ## Model access (2026-11-02)
 
+- 2026-11-03: the service now reads each located line as its own picture (see `docs/MARKING.md`, "Reading each line on its own"). On the owner's ODE page the first mistake was right in 5 of 6 runs (was 1 of 5). This is the biggest improvement so far on the weak model, but it is one page and a small sample. The model still sometimes fixes the slip it reads (about 1 in 8 on line 12). The owner decided (2026-11-03) not to build a "read twice and flag disagreement" check, because it would flag about 12 percent of lines.
+
 - Result of four runs on the ODE page with `gemini-3.5-flash-lite`: the first mistake was right once. The model misreads lines the same way each time (line 6 exponent, the minus on line 10), so reading twice would not fix it. A stronger model is needed. This is the main risk of the project.
 
 - Replit's Gemini integration cannot be added to the new Replit app (no approval prompt appears). The `replit` provider is built but cannot be tested.

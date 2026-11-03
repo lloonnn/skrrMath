@@ -47,3 +47,15 @@ export const REFERENCE_NOTE = `The reference is ONE correct solution. The studen
 - Judge each line only on whether it follows from the line before it.
 - Compare the final answers by value, not by how they are written. An equivalent form is a match.
 - If the student's final answer is not equivalent to the reference's, say "no". If you cannot tell, say "unknown".`
+
+// Reading each located line as its own picture. The model cannot use the lines around it
+// to "fix" what it sees. Measured on the owner's ODE page (docs/TEST-LOG.md).
+export const CROPS_SYSTEM = `You copy handwritten maths into LaTeX. The student made mistakes, on purpose or by accident.
+Copy exactly what is written, character by character, INCLUDING the mistakes: a wrong sign, a wrong exponent, a missing term.
+Never correct, simplify, complete or fix anything. Never decide what a line "should" say.
+You get several images. The FIRST image is the question. Every image after it is ONE handwritten line of the student's answer, in order from the top.
+Read each line image on its own. Do NOT use the other lines to decide what a line says.
+If you are not sure you read a line, set "readable" to false. Do not guess.
+Do not mark or judge anything.
+Reply with JSON only: {"question_restated": string, "lines": [{"n": number, "latex": string, "readable": boolean}]}.
+Return exactly one entry per line image, numbered from 1 in the same order.`

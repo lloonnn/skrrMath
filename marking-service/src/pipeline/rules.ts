@@ -45,12 +45,9 @@ export function solvesAgree(answers: string[]): boolean | null {
 
 const PAD = 20 // 2 percent of the 0 to 1000 scale, so a box does not clip the writing
 
-// Match located boxes to transcribed lines by order. Only when the counts are
-// equal. Otherwise return null: no marks beside lines, and the margin note stays.
-// Limit: if the model skips one line and splits another, the counts can still
-// match and the boxes shift. Checked on one page only.
-export function matchBoxes(raw: { box_2d: number[] }[], lineCount: number): Box[] | null {
-  if (raw.length !== lineCount) return null
+// Located boxes, with a little room added on each side so a box does not clip the
+// writing. null if any box is broken: then no boxes are used at all.
+export function padBoxes(raw: { box_2d: number[] }[]): Box[] | null {
   const boxes: Box[] = []
   for (const r of raw) {
     const [a, b, c, d] = r.box_2d.map((v) => Math.round(v))
@@ -60,6 +57,17 @@ export function matchBoxes(raw: { box_2d: number[] }[], lineCount: number): Box[
     boxes.push([y0, x0, y1, x1])
   }
   return boxes
+}
+
+// Match located boxes to transcribed lines by order. Only when the counts are
+// equal. Otherwise return null: no marks beside lines, and the margin note stays.
+// Used when the page was read as a whole. (When each located line is read as its own
+// picture, the boxes and the lines match one to one, so this is not needed.)
+// Limit: if the model skips one line and splits another, the counts can still
+// match and the boxes shift. Checked on one page only.
+export function matchBoxes(raw: { box_2d: number[] }[], lineCount: number): Box[] | null {
+  if (raw.length !== lineCount) return null
+  return padBoxes(raw)
 }
 
 export function unreadableResult(model: string, question = "", why = "Could not read this answer."): MarkingResult {
