@@ -34,7 +34,7 @@ First version (MVP):
 - A marking layer that can be hidden, so the student can redo a question.
 - A "what it read" view that shows how the AI transcribed the handwriting, so a misreading can be corrected.
 - A verified-answer area for each question, where the student can handwrite, paste an image or type the correct answer. Marking then uses it.
-- Export of the marked paper as a PDF.
+- Export of the marked paper as a PDF, with or without the marks.
 - Sign-in and cloud sync, so notes are the same on a tablet and a laptop.
 
 Second stage (planned, cut first if time runs short):

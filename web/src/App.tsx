@@ -1,5 +1,5 @@
 import * as React from "react"
-import { PanelRight } from "lucide-react"
+import { FileDown, PanelRight } from "lucide-react"
 
 import {
   addCourse,
@@ -12,6 +12,12 @@ import {
 } from "@shared/index.ts"
 
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { AppSidebar } from "@/components/app-sidebar"
 import type { CourseActions } from "@/components/nav-courses"
 import {
@@ -21,6 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 import { MarkingMargin } from "@/features/marking/marking-margin"
 import type { SavedMarks } from "@/features/marking/saved-marks"
+import type { MarkState } from "@/features/marking/question-section"
 import type { References } from "@/features/marking/reference"
 import { NoteCanvas, type Scene } from "@/features/canvas/note-canvas"
 import { usePaperTree } from "@/features/papers/use-paper-tree"
@@ -84,6 +91,10 @@ export function App() {
     noteId: null,
     refs: {},
   })
+  // Every question's marking state, as the panel shows it. The PDF export reads it.
+  const latestStates = React.useRef<Record<string, MarkState>>({})
+  const [exporting, setExporting] = React.useState(false)
+  const [exportMessage, setExportMessage] = React.useState<string | null>(null)
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null)
 
   const activePaper = findPaper(tree, activeNoteId)
@@ -132,6 +143,57 @@ export function App() {
     if (!activeNoteId) return
     latestRefs.current = { noteId: activeNoteId, refs }
     saveExtras()
+  }
+
+  // Make the PDF of the open note and save it to the device. "withMarks" false gives the
+  // clean paper: the questions and your writing, nothing from the marking.
+  async function exportPdf(withMarks: boolean) {
+    const scene = latestScene.current
+    if (!scene || !activePaper || exporting) return
+    setExporting(true)
+    setExportMessage(null)
+    try {
+      // The big parts (the PDF library and the page drawing) load only now.
+      const [{ collectItems }, { buildPdf }] = await Promise.all([
+        import("@/features/export/collect"),
+        import("@/features/export/pdf-export"),
+      ])
+      const items = await collectItems(
+        scene,
+        blocks,
+        latestStates.current,
+        latestRefs.current.noteId === activeNoteId
+          ? latestRefs.current.refs
+          : {}
+      )
+      const blob = await buildPdf({
+        title: `${activePaper.code} - ${activePaper.year}`,
+        subtitle: `${withMarks ? "Marked paper" : "Paper without marks"} - exported ${new Date().toLocaleDateString()}`,
+        items,
+        withMarks,
+      })
+      const name =
+        `${activePaper.code} ${activePaper.year} ${withMarks ? "marked" : "clean"}`
+          .replace(/[^\w.\- ]+/g, "_")
+          .trim()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${name}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      // Give the browser a moment to start the download before the address is freed.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      setExportMessage(
+        e instanceof Error
+          ? `Could not export the PDF: ${e.message}`
+          : "Could not export the PDF."
+      )
+    } finally {
+      setExporting(false)
+    }
   }
 
   // Write a list change to the account. If it fails, say so and reload the true list.
@@ -226,6 +288,7 @@ export function App() {
   }
 
   const problem =
+    exportMessage ??
     syncMessage ??
     account.error ??
     (note.status === "error" ? `Not saved: ${note.error}` : null)
@@ -265,10 +328,36 @@ export function App() {
               >
                 {problem ??
                   notice ??
+                  (exporting ? "Exporting PDF..." : null) ??
                   (activePaper
                     ? (signedIn ? STATUS_TEXT : GUEST_STATUS_TEXT)[note.status]
                     : "")}
               </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label="Export as PDF"
+                      title="Export as PDF"
+                      disabled={
+                        !activePaper || blocks.length === 0 || exporting
+                      }
+                    />
+                  }
+                >
+                  <FileDown />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => void exportPdf(true)}>
+                    Marked PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void exportPdf(false)}>
+                    Clean PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 size="icon-sm"
                 variant="ghost"
@@ -323,6 +412,9 @@ export function App() {
             onMarks={onMarks}
             initialReferences={note.initial?.references ?? {}}
             onReferences={onReferences}
+            onStates={(states) => {
+              latestStates.current = states
+            }}
           />
         </div>
       </SidebarInset>

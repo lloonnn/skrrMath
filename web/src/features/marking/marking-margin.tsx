@@ -40,6 +40,8 @@ type Props = {
   // The correct answers the student gave, saved with the note the same way.
   initialReferences: References
   onReferences: (refs: References) => void
+  // Every question's marking state, whenever it changes. The PDF export reads it.
+  onStates: (states: Record<string, MarkState>) => void
 }
 
 // The shell: the resizable box. It stays when you switch notes, so the width stays.
@@ -104,6 +106,7 @@ function MarkingBody({
   onMarks,
   initialReferences,
   onReferences,
+  onStates,
 }: Omit<Props, "open">) {
   // The marking state of each question, by its block id. It starts from the saved marks.
   const [states, setStates] = React.useState<Record<string, MarkState>>(() =>
@@ -156,6 +159,10 @@ function MarkingBody({
     onMarks(marks)
   }, [states, onMarks])
 
+  React.useEffect(() => {
+    onStates(states)
+  }, [states, onStates])
+
   async function markOne(id: string) {
     const block = blocks.find((b) => b.id === id)
     if (!block || !paper) return
@@ -199,12 +206,6 @@ function MarkingBody({
 
   return (
     <>
-      {blocks.length === 0 && (
-        <p className="text-muted-foreground">
-          Paste a cropped question image onto the canvas (Ctrl+V). It shows up
-          here. Then write your answer below it.
-        </p>
-      )}
       {blocks.length > 0 && (
         <div className="flex items-center gap-2">
           <Button
