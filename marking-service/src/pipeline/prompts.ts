@@ -39,3 +39,11 @@ export const LOCATE_SYSTEM = `You find where each handwritten line of an answer 
 Return one entry per handwritten line, from top to bottom, one box per line, in reading order. Do not merge or split lines.
 "box_2d" is [ymin, xmin, ymax, xmax] on a 0 to 1000 scale. "text" is only a short label, copy what is written.
 Reply with JSON only: [{"text": string, "box_2d": [number, number, number, number]}].`
+
+// Added to the marking instructions when the student gave a reference answer.
+// The reference is one correct solution, not the only one.
+export const REFERENCE_NOTE = `The reference is ONE correct solution. The student may use a different valid method.
+- Do not mark a line wrong because it differs from the reference, or uses other steps or other notation.
+- Judge each line only on whether it follows from the line before it.
+- Compare the final answers by value, not by how they are written. An equivalent form is a match.
+- If the student's final answer is not equivalent to the reference's, say "no". If you cannot tell, say "unknown".`

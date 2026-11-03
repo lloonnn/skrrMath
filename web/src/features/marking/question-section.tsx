@@ -12,6 +12,8 @@ import {
   type Marked,
 } from "@/features/marking/mark-service"
 import { Latex } from "@/features/marking/latex"
+import type { Reference } from "@/features/marking/reference"
+import { ReferenceEditor } from "@/features/marking/reference-editor"
 import { Button } from "@/components/ui/button"
 import {
   Collapsible,
@@ -22,7 +24,7 @@ import {
 export type MarkState =
   | { phase: "idle" }
   | { phase: "working"; since: number; step?: string }
-  | ({ phase: "done"; strokes: number; at: string } & Marked)
+  | ({ phase: "done"; strokes: number; at: string; refRev?: string } & Marked)
   | { phase: "failed"; message: string }
 
 // Counts the seconds since marking started.
@@ -58,12 +60,16 @@ export function QuestionSection({
   signedIn,
   state,
   onMark,
+  reference,
+  onReference,
 }: {
   block: SceneBlock
   paper: ActivePaper | null
   signedIn: boolean
   state: MarkState
   onMark: () => void
+  reference: Reference | undefined
+  onReference: (r: Reference | undefined) => void
 }) {
   const needsSignIn = MARK_NEEDS_SIGN_IN && !signedIn
   const result = state.phase === "done" ? state.result : null
@@ -113,6 +119,10 @@ export function QuestionSection({
         </p>
       )}
 
+      {MARK_MODE === "service" && (
+        <ReferenceEditor reference={reference} onChange={onReference} />
+      )}
+
       {state.phase === "working" && (
         <p className="text-xs text-muted-foreground" role="status">
           {state.step ?? "Starting..."} <Elapsed since={state.since} />
@@ -129,6 +139,15 @@ export function QuestionSection({
           <p className="text-xs text-muted-foreground">
             You changed your writing after this was marked. Press Mark to mark
             it again.
+          </p>
+        )}
+
+      {state.phase === "done" &&
+        MARK_MODE === "service" &&
+        (state.refRev ?? "") !== (reference?.rev ?? "") && (
+          <p className="text-xs text-muted-foreground">
+            Your correct answer changed after this was marked. Press Mark to
+            mark it again.
           </p>
         )}
 

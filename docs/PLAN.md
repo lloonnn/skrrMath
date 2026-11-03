@@ -47,7 +47,7 @@ Rules for the test files:
 1. Repository layout: `web` (Vite, React, TypeScript), `marking-service` (Node, TypeScript), `shared` (marking JSON types and validation).
 2. Tooling: TypeScript strict mode, lint, Vitest, Playwright, a script that loads `.env` and stops with a clear message when a required value is missing.
 3. Two Supabase projects: one for development, one for tests. Apply `supabase/schema.sql` to both after reviewing it.
-4. Sign-in (Google, with an optional email-domain limit). Guest mode (owner decision, 2026-11-02): the app works without an account, kept in the browser. Sign-in is needed to save online, to sync devices, and for real AI marking.
+4. Sign-in (Google, or email and password). Guest mode (owner decision, 2026-11-02): the app works without an account, kept in the browser. Sign-in is needed to save online, to sync devices, and for real AI marking.
 5. Add shadcn/ui and the `sidebar-08` block with `npx shadcn@latest add sidebar-08`, then change it to a course, year and paper tree in light mode with the app name skrrMath. Read the generated files before editing.
 6. Canvas with pen, text, eraser, undo, zoom, scroll. Spend one hour comparing two libraries on the tablet before picking.
 7. Save and load a page. Autosave a few seconds after writing stops. Latest save wins.

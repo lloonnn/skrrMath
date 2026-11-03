@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { MarkingMargin } from "@/features/marking/marking-margin"
 import type { SavedMarks } from "@/features/marking/saved-marks"
+import type { References } from "@/features/marking/reference"
 import { NoteCanvas, type Scene } from "@/features/canvas/note-canvas"
 import { usePaperTree } from "@/features/papers/use-paper-tree"
 import { useSession } from "@/features/auth/use-session"
@@ -78,6 +79,11 @@ export function App() {
     noteId: null,
     marks: {},
   })
+  // The student's own correct answers for the open note. Saved the same way.
+  const latestRefs = React.useRef<{ noteId: string | null; refs: References }>({
+    noteId: null,
+    refs: {},
+  })
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null)
 
   const activePaper = findPaper(tree, activeNoteId)
@@ -86,32 +92,46 @@ export function App() {
   const guestNote = useGuestNote(userId === null, activeNoteId)
   const note = signedIn ? cloudNote : guestNote
 
-  // The note as it should be saved: its writing plus the marks of questions that still
-  // exist (a mark whose question image was deleted is dropped).
-  function withMarks(scene: Scene, noteId: string): Scene {
+  // The note as it should be saved: its writing, plus the marks and the correct answers
+  // of questions that still exist (one whose question image was deleted is dropped).
+  function withExtras(scene: Scene, noteId: string): Scene {
     if (latestMarks.current.noteId !== noteId)
       latestMarks.current = { noteId, marks: note.initial?.marks ?? {} }
+    if (latestRefs.current.noteId !== noteId)
+      latestRefs.current = { noteId, refs: note.initial?.references ?? {} }
     const live = new Set(
       scene.elements
         .filter((e) => !e.isDeleted && e.type === "image")
         .map((e) => e.id)
     )
-    const marks = Object.fromEntries(
-      Object.entries(latestMarks.current.marks).filter(([id]) => live.has(id))
-    )
-    return { ...scene, marks }
+    const keep = <T,>(all: Record<string, T>) =>
+      Object.fromEntries(Object.entries(all).filter(([id]) => live.has(id)))
+    return {
+      ...scene,
+      marks: keep(latestMarks.current.marks),
+      references: keep(latestRefs.current.refs),
+    }
   }
 
-  // A question was marked or re-marked: save it with the note.
-  function onMarks(marks: SavedMarks) {
+  // Something changed that is saved with the note (a mark, or a correct answer).
+  function saveExtras() {
     if (!activeNoteId) return
-    latestMarks.current = { noteId: activeNoteId, marks }
     const base =
       latestScene.current ?? (note.initial ? { ...note.initial } : null)
     if (!base) return
-    const full = withMarks(base, activeNoteId)
+    const full = withExtras(base, activeNoteId)
     latestScene.current = full
     note.onScene(full)
+  }
+  function onMarks(marks: SavedMarks) {
+    if (!activeNoteId) return
+    latestMarks.current = { noteId: activeNoteId, marks }
+    saveExtras()
+  }
+  function onReferences(refs: References) {
+    if (!activeNoteId) return
+    latestRefs.current = { noteId: activeNoteId, refs }
+    saveExtras()
   }
 
   // Write a list change to the account. If it fails, say so and reload the true list.
@@ -270,7 +290,7 @@ export function App() {
                     key={activeNoteId}
                     initial={note.initial}
                     onScene={(scene) => {
-                      const full = withMarks(scene, activeNoteId)
+                      const full = withExtras(scene, activeNoteId)
                       latestScene.current = full
                       note.onScene(full)
                     }}
@@ -301,6 +321,8 @@ export function App() {
             noteKey={`${activeNoteId ?? "none"}:${note.ready ? "ready" : "loading"}`}
             initialMarks={note.initial?.marks ?? {}}
             onMarks={onMarks}
+            initialReferences={note.initial?.references ?? {}}
+            onReferences={onReferences}
           />
         </div>
       </SidebarInset>

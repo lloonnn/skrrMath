@@ -9,6 +9,9 @@ export type SavedMark = {
   // different now, the writing changed after the marking.
   strokes: number
   at: string
+  // The "rev" of the reference answer it was marked against, if any. If the reference
+  // was changed or removed since, the mark may no longer match it.
+  refRev?: string
 }
 export type SavedMarks = Record<string, SavedMark>
 

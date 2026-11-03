@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
 import { ModelUnavailableError, type ModelCall, type ModelClient } from "../providers/types.ts"
 import type { Engine, MarkRequest, ProgressStep } from "../types.ts"
-import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, REFERENCE_NOTE, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 import {
   assemble,
   matchBoxes,
@@ -138,7 +138,7 @@ export async function markWithModel(
       system: MARK_SYSTEM,
       prompt: `Question: ${t.question_restated}\nStudent lines (copied, do not change):\n${t.lines
         .map((l) => `${l.n}. ${l.readable ? l.latex : "[unreadable]"}`)
-        .join("\n")}\nReference: ${referenceText}`,
+        .join("\n")}\nReference: ${referenceText}${req.verifiedAnswer ? `\n${REFERENCE_NOTE}` : ""}`,
       images: [req.blockImage, req.answerImage, ...referenceImages],
       thinking: "high",
     },

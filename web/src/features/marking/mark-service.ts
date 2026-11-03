@@ -7,6 +7,7 @@ import {
   type SceneBlock,
 } from "@shared/index.ts"
 import type { Scene } from "@/features/canvas/note-canvas"
+import type { Reference } from "@/features/marking/reference"
 import { renderAnswer, renderQuestion } from "@/features/marking/render-images"
 import { supabase } from "@/lib/supabase"
 
@@ -28,6 +29,16 @@ async function markDemo(): Promise<Marked> {
   const parsed = parseMarkingResult(fixture)
   if (!parsed.ok) throw new MarkError("The demo example is invalid.")
   return { result: parsed.result, imageUrl: pageImage }
+}
+
+// The reference in the shape the service expects.
+function toRequest(r: Reference) {
+  return r.kind === "text"
+    ? { kind: "text" as const, text: r.text }
+    : {
+        kind: "image" as const,
+        image: { mimeType: r.mimeType, base64: r.base64 },
+      }
 }
 
 // What the service says it is doing, in words for the person.
@@ -103,6 +114,7 @@ async function markViaService(
   scene: Scene,
   block: SceneBlock,
   paper: ActivePaper,
+  reference: Reference | undefined,
   onStep?: (label: string) => void
 ): Promise<Marked> {
   const token = (await supabase?.auth.getSession())?.data.session?.access_token
@@ -126,6 +138,7 @@ async function markViaService(
       body: JSON.stringify({
         blockImage: question,
         answerImage: answer,
+        ...(reference ? { verifiedAnswer: toRequest(reference) } : {}),
         tags: {
           course: paper.code.slice(0, 40),
           question: String(block.number),
@@ -159,9 +172,10 @@ export function markBlock(
   scene: Scene | null,
   block: SceneBlock,
   paper: ActivePaper,
+  reference: Reference | undefined,
   onStep?: (label: string) => void
 ): Promise<Marked> {
   if (MARK_MODE === "demo") return markDemo()
   if (!scene) return Promise.reject(new MarkError("Open the note first."))
-  return markViaService(scene, block, paper, onStep)
+  return markViaService(scene, block, paper, reference, onStep)
 }

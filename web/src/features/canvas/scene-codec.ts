@@ -1,9 +1,18 @@
 import type { Scene } from "@/features/canvas/note-canvas"
 import { marksSignature, readMarks } from "@/features/marking/saved-marks"
+import {
+  readReferences,
+  referencesSignature,
+} from "@/features/marking/reference"
 
 // What is stored for a note (in the account or in this browser): the live elements
 // and the images they use. Never the view (zoom, scroll).
-export type Stored = { elements: unknown[]; files: unknown; marks?: unknown }
+export type Stored = {
+  elements: unknown[]
+  files: unknown
+  marks?: unknown
+  references?: unknown
+}
 
 export function toStored(scene: Scene): Stored {
   const stored: Stored = {
@@ -12,6 +21,8 @@ export function toStored(scene: Scene): Stored {
   }
   if (scene.marks && Object.keys(scene.marks).length > 0)
     stored.marks = scene.marks
+  if (scene.references && Object.keys(scene.references).length > 0)
+    stored.references = scene.references
   return stored
 }
 
@@ -21,12 +32,14 @@ export function fromStored(data: unknown): Scene | undefined {
     elements?: unknown
     files?: unknown
     marks?: unknown
+    references?: unknown
   } | null
   if (!s || !Array.isArray(s.elements)) return undefined
   return {
     elements: s.elements as Scene["elements"],
     files: (s.files ?? {}) as Scene["files"],
     marks: readMarks(s.marks),
+    references: readReferences(s.references),
   }
 }
 
@@ -35,4 +48,6 @@ export function fromStored(data: unknown): Scene | undefined {
 export const signature = (scene: Scene) =>
   scene.elements.map((e) => `${e.id}:${e.version}`).join(",") +
   "#" +
-  marksSignature(scene.marks)
+  marksSignature(scene.marks) +
+  "#" +
+  referencesSignature(scene.references)

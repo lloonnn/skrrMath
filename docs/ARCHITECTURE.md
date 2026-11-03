@@ -113,7 +113,6 @@ Files: PDFs and pasted images go to private storage under the owner's id. The sh
 
 - Row-level access rules on every table. Private tables: owner only. Test with two accounts.
 - Service role key and AI key stay on the server.
-- Optional email-domain limit on sign-in.
 - Rate limit the mark endpoint. Each marking costs money.
 - A report button on bank answers. Show who added each answer and how it was checked.
 - Do not log image contents or answers.

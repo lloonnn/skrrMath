@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button"
 import { MARK_MODE, markBlock } from "@/features/marking/mark-service"
 import type { Scene } from "@/features/canvas/note-canvas"
 import {
+  referencesSignature,
+  type Reference,
+  type References,
+} from "@/features/marking/reference"
+import {
   isKeepable,
   marksSignature,
   type SavedMarks,
@@ -32,6 +37,9 @@ type Props = {
   initialMarks: SavedMarks
   // Tells the note when a result is added or redone, so it can be saved.
   onMarks: (marks: SavedMarks) => void
+  // The correct answers the student gave, saved with the note the same way.
+  initialReferences: References
+  onReferences: (refs: References) => void
 }
 
 // The shell: the resizable box. It stays when you switch notes, so the width stays.
@@ -94,6 +102,8 @@ function MarkingBody({
   getScene,
   initialMarks,
   onMarks,
+  initialReferences,
+  onReferences,
 }: Omit<Props, "open">) {
   // The marking state of each question, by its block id. It starts from the saved marks.
   const [states, setStates] = React.useState<Record<string, MarkState>>(() =>
@@ -104,6 +114,24 @@ function MarkingBody({
       ])
     )
   )
+  // The student's own correct answer for each question.
+  const [references, setReferences] =
+    React.useState<References>(initialReferences)
+  const setReference = (id: string, ref: Reference | undefined) =>
+    setReferences((all) => {
+      const next = { ...all }
+      if (ref) next[id] = ref
+      else delete next[id]
+      return next
+    })
+  const lastRefs = React.useRef(referencesSignature(initialReferences))
+  React.useEffect(() => {
+    const sig = referencesSignature(references)
+    if (sig === lastRefs.current) return
+    lastRefs.current = sig
+    onReferences(references)
+  }, [references, onReferences])
+
   const stateOf = (id: string): MarkState => states[id] ?? { phase: "idle" }
   const set = (id: string, s: MarkState) =>
     setStates((all) => ({ ...all, [id]: s }))
@@ -120,6 +148,7 @@ function MarkingBody({
           imageUrl: s.imageUrl,
           strokes: s.strokes,
           at: s.at,
+          ...(s.refRev ? { refRev: s.refRev } : {}),
         }
     const sig = marksSignature(marks)
     if (sig === lastSent.current) return
@@ -133,14 +162,19 @@ function MarkingBody({
     const since = Date.now()
     set(id, { phase: "working", since })
     try {
-      const marked = await markBlock(getScene(), block, paper, (step) =>
-        set(id, { phase: "working", since, step })
+      const marked = await markBlock(
+        getScene(),
+        block,
+        paper,
+        references[id],
+        (step) => set(id, { phase: "working", since, step })
       )
       set(id, {
         phase: "done",
         ...marked,
         strokes: block.strokes,
         at: new Date().toISOString(),
+        refRev: references[id]?.rev,
       })
     } catch (e) {
       set(id, {
@@ -193,6 +227,8 @@ function MarkingBody({
           signedIn={signedIn}
           state={stateOf(b.id)}
           onMark={() => markOne(b.id)}
+          reference={references[b.id]}
+          onReference={(r) => setReference(b.id, r)}
         />
       ))}
       {blocks.length > 0 && MARK_MODE === "demo" && (

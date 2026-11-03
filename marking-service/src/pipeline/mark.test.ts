@@ -26,16 +26,18 @@ function mock(input: Partial<Record<Step, string[]>>) {
 }
 function mockFull(script: Record<Step, string[]>) {
   const calls: Step[] = []
+  const prompts: { step: Step; prompt: string }[] = []
   const used: Record<Step, number> = { transcribe: 0, solve: 0, mark: 0, equiv: 0, locate: 0 }
   const client: ModelClient = {
     async generate(call) {
       const s = stepOf(call)
       calls.push(s)
+      prompts.push({ step: s, prompt: call.prompt })
       const q = script[s]
       return q[Math.min(used[s]++, q.length - 1)]
     },
   }
-  return { client, calls }
+  return { client, calls, prompts }
 }
 
 const line = (n: number, latex: string, readable = true) => ({ n, latex, readable })
@@ -56,6 +58,34 @@ const okLines = [ml(1, "ok"), ml(2, "error", "Sign slip"), ml(3, "follows_from_e
 
 const locateFor = (n: number) =>
   JSON.stringify(Array.from({ length: n }, (_, i) => ({ text: `l${i + 1}`, box_2d: [i * 200 + 50, 100, i * 200 + 150, 900] })))
+
+describe("a reference answer is one route, not the only one", () => {
+  it("tells the model so when the student gave a reference", async () => {
+    const { client, prompts } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] })
+    await markWithModel(client, req({ verifiedAnswer: { kind: "text", text: "x = 5" } }), opts)
+    const markPrompt = prompts.find((p) => p.step === "mark")!.prompt
+    expect(markPrompt).toContain("ONE correct solution")
+    expect(markPrompt).toContain("different valid method")
+    expect(markPrompt).toContain("x = 5")
+  })
+  it("does not add that note when the AI solved it itself", async () => {
+    const { client, prompts } = mock({ transcribe: [transcription()], solve: [solve("x=5"), solve("x=5")], mark: [markOut(okLines)] })
+    await markWithModel(client, req(), opts)
+    expect(prompts.find((p) => p.step === "mark")!.prompt).not.toContain("ONE correct solution")
+  })
+  it("sends a pasted image reference as a third picture", async () => {
+    const seen: number[] = []
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] })
+    const spy = { generate: async (c: Parameters<typeof client.generate>[0]) => { if (c.system === MARK_SYSTEM) seen.push(c.images.length); return client.generate(c) } }
+    await markWithModel(spy, req({ verifiedAnswer: { kind: "image", image: img } }), opts)
+    expect(seen).toEqual([3])
+  })
+  it("labels the result as checked against the student's own answer", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, req({ verifiedAnswer: { kind: "text", text: "x = 5" } }), opts)
+    expect(markingLabel(r)).toBe("Checked against your answer")
+  })
+})
 
 describe("progress steps", () => {
   const steps = async (script: Parameters<typeof mock>[0], r: Partial<MarkRequest> = {}) => {
