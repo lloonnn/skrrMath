@@ -4,6 +4,7 @@ import type { ActivePaper, SceneBlock } from "@shared/index.ts"
 import { Button } from "@/components/ui/button"
 import { MARK_MODE, markBlock } from "@/features/marking/mark-service"
 import type { Scene } from "@/features/canvas/note-canvas"
+import { labelsSignature, type Labels } from "@/features/marking/labels"
 import {
   referencesSignature,
   type Reference,
@@ -40,6 +41,9 @@ type Props = {
   // The correct answers the student gave, saved with the note the same way.
   initialReferences: References
   onReferences: (refs: References) => void
+  // The question labels ("23a"), saved the same way.
+  initialLabels: Labels
+  onLabels: (labels: Labels) => void
   // Every question's marking state, whenever it changes. The PDF export reads it.
   onStates: (states: Record<string, MarkState>) => void
 }
@@ -106,6 +110,8 @@ function MarkingBody({
   onMarks,
   initialReferences,
   onReferences,
+  initialLabels,
+  onLabels,
   onStates,
 }: Omit<Props, "open">) {
   // The marking state of each question, by its block id. It starts from the saved marks.
@@ -134,6 +140,23 @@ function MarkingBody({
     lastRefs.current = sig
     onReferences(references)
   }, [references, onReferences])
+
+  // The label of each question, like "23a".
+  const [labels, setLabels] = React.useState<Labels>(initialLabels)
+  const setLabel = (id: string, value: string) =>
+    setLabels((all) => {
+      const next = { ...all }
+      if (value.trim()) next[id] = value
+      else delete next[id]
+      return next
+    })
+  const lastLabels = React.useRef(labelsSignature(initialLabels))
+  React.useEffect(() => {
+    const sig = labelsSignature(labels)
+    if (sig === lastLabels.current) return
+    lastLabels.current = sig
+    onLabels(labels)
+  }, [labels, onLabels])
 
   const stateOf = (id: string): MarkState => states[id] ?? { phase: "idle" }
   const set = (id: string, s: MarkState) =>
@@ -229,6 +252,8 @@ function MarkingBody({
           state={stateOf(b.id)}
           onMark={() => markOne(b.id)}
           reference={references[b.id]}
+          label={labels[b.id] ?? ""}
+          onLabel={(v) => setLabel(b.id, v)}
           onReference={(r) => setReference(b.id, r)}
         />
       ))}

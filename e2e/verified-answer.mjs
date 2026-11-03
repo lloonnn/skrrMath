@@ -61,7 +61,7 @@ try {
   await sleep(1500)
 
   // open "Your correct answer" and type a reference
-  const trig = () => A.ev("[...document.querySelectorAll('aside button')].find(b=>b.textContent.includes('Your correct answer'))?.click()")
+  const trig = () => A.ev("[...document.querySelectorAll('aside button')].find(b=>b.textContent.includes('Correct answer'))?.click()")
   await trig(); await sleep(400)
   check("the correct-answer area opens with a text box", await A.ev("!!document.querySelector('aside textarea')"))
   await A.ev("document.querySelector('aside textarea').focus()"); await A.send("Input.insertText", { text: "x = 4" }); await sleep(600)
@@ -85,7 +85,7 @@ try {
 
   // change the reference: the notice
   await A.ev("document.querySelector('aside textarea').focus()"); await A.send("Input.insertText", { text: " or x = 5" }); await sleep(800)
-  check("changing the answer shows the notice", (await A.panel()).includes("Your correct answer changed after this was marked"), (await A.panel()).slice(0, 220))
+  check("changing the answer shows the notice", (await A.panel()).includes("The correct answer changed after marking"), (await A.panel()).slice(0, 220))
 
   // paste a picture into the area
   await A.ev(`(async () => {
@@ -100,7 +100,7 @@ try {
   await sleep(9000)
   const pages2 = await rows()
   check("the picture answer is saved in the account", Object.values(pages2[0]?.strokes?.references ?? {}).some((r) => r.kind === "image" && r.base64.length > 100))
-  await A.ev("[...document.querySelectorAll('aside button')].find(b=>b.textContent.includes('Remove the picture'))?.click()"); await sleep(1200)
+  await A.ev("[...document.querySelectorAll('aside button')].find(b=>b.textContent.includes('Remove picture'))?.click()"); await sleep(1200)
   check("removing the picture brings the text box back, empty", (await A.ev("document.querySelector('aside textarea')?.value")) === "")
   A.close()
 } catch (e) { console.log("ERROR", e.message); fail++ } finally {

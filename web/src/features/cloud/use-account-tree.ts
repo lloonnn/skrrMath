@@ -1,7 +1,12 @@
 import * as React from "react"
 import { mergeLocalIntoCloud, type PaperTree } from "@shared/index.ts"
 import { uid } from "@/lib/uid"
-import { fetchTree, insertCourse, insertYear } from "@/features/cloud/cloud"
+import {
+  fetchTree,
+  insertCourse,
+  insertYear,
+  setCourseCodeCloud,
+} from "@/features/cloud/cloud"
 import { uploadGuestWriting } from "@/features/cloud/upload-guest"
 
 // The course and note list of a signed-in user. It lives in the account.
@@ -44,7 +49,10 @@ export function useAccountTree(
       try {
         const cloud = await fetchTree()
         const up = mergeLocalIntoCloud(cloud, localRef.current, uid)
-        for (const c of up.newCourses) await insertCourse(c.id, c.name)
+        for (const c of up.newCourses)
+          await insertCourse(c.id, c.name, c.courseCode)
+        for (const u of up.codeUpdates)
+          await setCourseCodeCloud(u.id, u.courseCode)
         for (const y of up.newYears) await insertYear(y.id, y.courseId, y.label)
         // Then the writing. A note that already had writing gets the guest copy as a new note.
         const w = await uploadGuestWriting(up.yearIdMap, up.merged)

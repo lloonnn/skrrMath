@@ -1,6 +1,9 @@
 import {
+  keyParts,
   lineMarks,
   marginView,
+  missingKeyParts,
+  questionKey,
   type ActivePaper,
   type SceneBlock,
 } from "@shared/index.ts"
@@ -15,6 +18,8 @@ import { Latex } from "@/features/marking/latex"
 import type { Reference } from "@/features/marking/reference"
 import { ReferenceEditor } from "@/features/marking/reference-editor"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { MAX_LABEL } from "@/features/marking/labels"
 import {
   Collapsible,
   CollapsibleContent,
@@ -62,6 +67,8 @@ export function QuestionSection({
   onMark,
   reference,
   onReference,
+  label,
+  onLabel,
 }: {
   block: SceneBlock
   paper: ActivePaper | null
@@ -70,21 +77,50 @@ export function QuestionSection({
   onMark: () => void
   reference: Reference | undefined
   onReference: (r: Reference | undefined) => void
+  label: string
+  onLabel: (value: string) => void
 }) {
   const needsSignIn = MARK_NEEDS_SIGN_IN && !signedIn
   const result = state.phase === "done" ? state.result : null
   const view = result ? marginView(result) : null
   const marks = result ? lineMarks(result) : null
+  // The key that finds this question again (course code, exam, question label).
+  const parts = keyParts({
+    courseCode: paper?.courseCode,
+    exam: paper?.exam,
+    question: label,
+  })
+  const key = questionKey(parts)
 
   return (
     <section className="flex flex-col gap-3 border-b pb-6">
-      <div>
-        <h2 className="font-medium">Question {block.number}</h2>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-medium">Question {block.number}</h2>
+          <Input
+            aria-label="Question label"
+            placeholder="Label, like 23a"
+            value={label}
+            maxLength={MAX_LABEL}
+            onChange={(e) => onLabel(e.target.value)}
+            className="h-8 w-36 text-sm"
+          />
+        </div>
         <p className="text-xs text-muted-foreground">
           {paper
             ? `${paper.code} · ${paper.year}`
             : "Open a note in the left list first."}
         </p>
+        {paper && (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid="question-key"
+          >
+            {key
+              ? `Key: ${parts.course} · ${parts.exam} · ${parts.question}`
+              : `Key needs: ${missingKeyParts(parts).join(", ")}.`}
+          </p>
+        )}
       </div>
       {block.region.overlaps && (
         <p className="text-xs text-red-700">
@@ -146,8 +182,7 @@ export function QuestionSection({
         MARK_MODE === "service" &&
         (state.refRev ?? "") !== (reference?.rev ?? "") && (
           <p className="text-xs text-muted-foreground">
-            Your correct answer changed after this was marked. Press Mark to
-            mark it again.
+            The correct answer changed after marking. Press Mark again.
           </p>
         )}
 

@@ -4,6 +4,7 @@ import {
   readReferences,
   referencesSignature,
 } from "@/features/marking/reference"
+import { labelsSignature, readLabels } from "@/features/marking/labels"
 
 // What is stored for a note (in the account or in this browser): the live elements
 // and the images they use. Never the view (zoom, scroll).
@@ -12,6 +13,7 @@ export type Stored = {
   files: unknown
   marks?: unknown
   references?: unknown
+  labels?: unknown
 }
 
 export function toStored(scene: Scene): Stored {
@@ -23,6 +25,8 @@ export function toStored(scene: Scene): Stored {
     stored.marks = scene.marks
   if (scene.references && Object.keys(scene.references).length > 0)
     stored.references = scene.references
+  if (scene.labels && Object.keys(scene.labels).length > 0)
+    stored.labels = scene.labels
   return stored
 }
 
@@ -33,6 +37,7 @@ export function fromStored(data: unknown): Scene | undefined {
     files?: unknown
     marks?: unknown
     references?: unknown
+    labels?: unknown
   } | null
   if (!s || !Array.isArray(s.elements)) return undefined
   return {
@@ -40,6 +45,7 @@ export function fromStored(data: unknown): Scene | undefined {
     files: (s.files ?? {}) as Scene["files"],
     marks: readMarks(s.marks),
     references: readReferences(s.references),
+    labels: readLabels(s.labels),
   }
 }
 
@@ -50,4 +56,6 @@ export const signature = (scene: Scene) =>
   "#" +
   marksSignature(scene.marks) +
   "#" +
-  referencesSignature(scene.references)
+  referencesSignature(scene.references) +
+  "#" +
+  labelsSignature(scene.labels)

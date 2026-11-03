@@ -43,7 +43,7 @@ export function ReferenceEditor({
   return (
     <Collapsible defaultOpen={reference !== undefined}>
       <CollapsibleTrigger className="text-xs text-muted-foreground underline">
-        Your correct answer (optional){reference ? " - added" : ""}
+        Correct answer (optional){reference ? " - added" : ""}
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div
@@ -60,8 +60,7 @@ export function ReferenceEditor({
           }}
         >
           <p className="text-xs text-muted-foreground">
-            The AI will check your lines against this, and will not solve the
-            question itself. If this answer is wrong, the marks follow it.
+            The AI marks your answer against this.
           </p>
 
           {reference?.kind === "image" ? (
@@ -79,7 +78,7 @@ export function ReferenceEditor({
                   onChange(undefined)
                 }}
               >
-                Remove the picture
+                Remove picture
               </Button>
             </div>
           ) : (
@@ -88,7 +87,7 @@ export function ReferenceEditor({
                 value={text}
                 maxLength={MAX_TEXT}
                 rows={3}
-                placeholder="Type the correct answer or solution. For maths, plain text like y^3 = 8x^3 - 3x^3 ln|x| is fine."
+                placeholder="Type the correct answer"
                 className="w-full resize-y rounded-md border bg-background p-2 text-sm"
                 onChange={(e) => {
                   const value = e.target.value
@@ -116,7 +115,7 @@ export function ReferenceEditor({
                 variant="outline"
                 onClick={() => fileInput.current?.click()}
               >
-                Add a photo or picture instead
+                Add a picture instead
               </Button>
             </>
           )}
