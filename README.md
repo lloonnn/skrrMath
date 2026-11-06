@@ -2,7 +2,7 @@
 
 A note-taking web app for practising past-year exam papers by hand, with AI marking on the page.
 
-Status: planning, with a first scaffold. `web/` has the app shell with the sidebar only. Built with Claude Code. Every technical choice below is proposed, not final.
+Status: working prototype. Notes, handwriting, AI marking, PDF export, sign-in with cloud sync, and lecturer answer books are built and tested. Not yet done: a hosted demo, and handwriting is still the weak spot. Built with Claude Code.
 
 ## Problem
 
@@ -25,27 +25,18 @@ How this addresses the problems:
 
 ## Features
 
-First version (MVP):
+- A note canvas (Excalidraw) with a pen, text box, eraser, undo, zoom and scroll.
+- Notes are organised as course, then a note per paper (the name is free text, like "2023 May").
+- Paste a cropped screenshot of a question, then write the answer by hand below it.
+- Marking in the margin, in red pen. The AI reads each line of the handwriting, finds the first error, names the type of mistake, and marks later lines that follow from it as such. It says whether the method was right. **Mark all** marks every question in a note.
+- A marking layer that can be hidden, so the student can redo a question. Marks are saved with the note.
+- A "what it read" view that shows how the AI read the handwriting, so a misreading can be seen.
+- An optional "Correct answer" box for each question (typed or a picture).
+- Export to PDF, with the marks or clean.
+- Sign-in (email or Google) and cloud sync, so notes are the same on a tablet and a laptop. Without signing in, notes stay on the device and Mark shows a saved example.
+- Lecturer answer books: a lecturer adds one answer book per paper (course code and exam). A student's Mark finds it by the course name and the note name, and the AI marks against it. The label says "Checked against a lecturer's solution". With no book, the AI solves the question itself and the label is "AI-checked". See "For lecturers" below.
 
-- A basic note canvas with a pen, text box, eraser, undo, zoom and scroll.
-- Import of a past-year paper as a PDF, or a pasted cropped screenshot of a single question.
-- Question blocks. Each question is a block, tagged with course code, exam year and question number, and the student writes the answer below it.
-- Marking in the margin, in red pen. The AI finds the first error, names the type of mistake, and marks later lines that follow from it as such. It also says whether the method was right.
-- A marking layer that can be hidden, so the student can redo a question.
-- A "what it read" view that shows how the AI transcribed the handwriting, so a misreading can be corrected.
-- A verified-answer area for each question, where the student can handwrite, paste an image or type the correct answer. Marking then uses it.
-- Export of the marked paper as a PDF, with or without the marks.
-- Sign-in and cloud sync, so notes are the same on a tablet and a laptop.
-
-Lecturer answer books (built):
-
-- A lecturer adds one answer book per paper (course code and exam). Every signed-in student's Mark finds it by the course name and the note name, and the AI marks against it. The label says "Checked against a lecturer's solution". With no book, the AI solves it and the label stays "AI-checked".
-
-Second stage (planned, cut first if time runs short):
-
-- Student confirmations, reports and trust levels for shared answers.
-
-The first subject is mathematics (worked steps and proofs). Handwritten code and theory questions come later.
+Not built yet: PDF import of a whole paper, student confirmations and reports for shared answers, handwritten code and theory questions. The first subject is mathematics.
 
 ## Not included
 
@@ -53,17 +44,16 @@ The first subject is mathematics (worked steps and proofs). Handwritten code and
 - A full note-app toolset such as shapes, lasso selection, handwriting-to-text, folders and templates.
 - Official grades. Marks are for practice only.
 
-## Proposed stack
+## Stack
 
 | Part | Proposed |
 |---|---|
 | App | React and TypeScript web app |
 | Interface components | shadcn/ui, light mode. The left sidebar starts from the `sidebar-08` block, adapted to a course, year and paper tree. App name: skrrMath. |
-| Canvas | An existing library (Excalidraw, MIT licence) |
-| PDF import | pdf.js |
-| PDF export | Render pages to images, then build with jsPDF or pdf-lib |
+| Canvas | Excalidraw (MIT licence) |
+| PDF export | Pages drawn to images, then built with jsPDF |
 | Maths in comments | KaTeX |
-| AI model | Gemini (a Flash-class model first), kept as one setting |
+| AI model | Gemini, kept as one setting (`GEMINI_MODEL`) |
 | Model access | A small marking service with three modes. The hosted prototype runs in demo mode and returns saved example results, with no AI call. Real use needs the user's own key. In real use it calls Gemini with a Google AI Studio key, so anyone can run it. The owner can switch it to Replit AI Integrations (billed to Replit credits) on their own Replit app. |
 | Sign-in, database, files | Supabase |
 | App hosting | Not decided |
@@ -72,73 +62,21 @@ Claude Code builds the project. A hosted prototype shows example results only, a
 
 ## Repository structure
 
-The folders exist. Only `web/` has code so far, the sidebar. The folders also hold short local README files for the coding assistant. They are not tracked in git, so they do not appear in a clone.
-
 | Folder | Purpose |
 |---|---|
 | `web/` | The browser app: React, TypeScript, Vite, shadcn/ui. Features are split by folder under `src/features`. |
 | `marking-service/` | The small server with one endpoint, `POST /api/mark`, and the `demo`, `google` and `replit` model modes. |
 | `shared/` | The marking result shape and validation, used by both `web` and `marking-service`. |
 | `fixtures/` | Made-up or own-work test and demo data. No school paper content. |
-| `supabase/` | The draft schema and database migrations. |
-| `e2e/` | Browser tests that cover the app and the service together. |
-| `scripts/` | Helper scripts. |
-| `docs/` | Architecture, marking design, plan, test log and the interface mockup. |
-
-```
-skrrMath/
-├── README.md
-├── CLAUDE.md
-├── .env.example
-├── .gitignore
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── MARKING.md
-│   ├── PLAN.md
-│   ├── TEST-LOG.md
-│   ├── img/                  # handwritten test pages
-│   └── mockup/
-│       └── index.html
-├── web/
-│   └── src/
-│       ├── app/
-│       ├── components/
-│       ├── lib/
-│       └── features/
-│           ├── papers/
-│           ├── canvas/
-│           ├── blocks/
-│           ├── marking/
-│           ├── reference/
-│           ├── export/
-│           └── bank/
-├── marking-service/
-│   └── src/
-│       ├── providers/
-│       ├── pipeline/
-│       └── middleware/
-├── shared/
-│   └── src/
-├── fixtures/
-│   ├── marking/
-│   ├── images/
-│   └── pdf/
-├── supabase/
-│   ├── schema.sql
-│   └── migrations/
-├── e2e/
-└── scripts/
-```
+| `supabase/` | Database migrations (applied in order). |
+| `e2e/` | Browser tests, off by default. Each file says how to run it in its first lines. |
+| `scripts/` | Database access tests and the lecturer code script. |
+| `docs/` | Architecture, marking design, and the owner's handwritten test pages (`docs/img`). |
 
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): components, data, flows and security.
 - [docs/MARKING.md](docs/MARKING.md): how the AI marks, the output format and test cases.
-- [docs/PLAN.md](docs/PLAN.md): the 8-day plan with automated and manual tests for each day, and the cut line.
-- [docs/TEST-LOG.md](docs/TEST-LOG.md): where manual test results are recorded.
-- [docs/mockup/index.html](docs/mockup/index.html): a static mockup of the proposed interface. Open it in a browser.
-- [supabase/schema.sql](supabase/schema.sql): draft database tables and access rules. Not applied, not tested.
-- [CLAUDE.md](CLAUDE.md): rules for the AI coding assistant working in this repository.
 
 ## For lecturers
 
@@ -152,10 +90,58 @@ Limits: every signed-in student can read a book. A lecturer's book wins over a s
 
 ## Setup
 
-Not written yet. It will be added when the project is scaffolded.
+You need [Node.js](https://nodejs.org) (a recent version; the exact minimum is not checked), git, a free [Supabase](https://supabase.com) project and a free key from [Google AI Studio](https://aistudio.google.com).
 
-1. Copy `.env.example` to `.env` and fill in the values.
-2. Install and run commands: to be decided.
+**1. Install**
+
+```bash
+git clone https://github.com/lloonnn/skrrMath.git
+cd skrrMath
+npm install
+cp .env.example .env
+```
+
+**2. Fill in `.env`.** Open it and paste:
+- From Supabase (Project settings, API): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. The service role key is secret: never share it. `.env` is never committed.
+- From Google AI Studio: `GEMINI_API_KEY`, and `GEMINI_MODEL` (a current Gemini model name).
+
+**3. Set up the database.** In Supabase, open the SQL editor, paste the whole of `supabase/setup.sql`, and press Run. Then open Authentication, URL configuration, and add `http://localhost:5173` to the redirect URLs.
+
+**4. Run**
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:5173` and sign in. On a tablet on the same Wi-Fi, open `http://<your computer's address>:5173`.
+
+### Updating
+
+Only if a new file appears in `supabase/migrations/` after you set up: do not paste `setup.sql` again. Paste only the new files, in number order, into the Supabase SQL editor. For example, if you last ran `0007`, paste `0008`, then `0009`.
+
+### Optional
+
+**Try it without an AI key.** In `.env` set `MARK_MODE=demo`. Mark then shows a saved example and calls no AI.
+
+**Lecturers.** In `.env` set `LECTURER_CODE=` to any code of 6 or more characters, then run:
+
+```bash
+node --env-file=.env scripts/set-lecturer-code.mjs
+```
+
+**Checks.**
+
+```bash
+(cd shared && npm test)
+(cd marking-service && npm test)
+(cd web && npm run build)
+node --env-file=.env scripts/rls-test.mjs
+node --env-file=.env scripts/bank-rls-test.mjs
+```
+
+The last two test the database access rules with temporary accounts, which they delete. The scripts in `e2e/` drive a real browser, are off by default, and explain themselves in their first lines.
+
+Limits: this setup was written from how the project was built here and has not been tried on a clean machine. `supabase/setup.sql` has not been run on a new Supabase project (the same files ran one by one on the owner's). Supabase may ask you to confirm sign-up emails. On a tablet over plain `http`, Chrome warns when downloading the PDF.
 
 ## Known risks
 

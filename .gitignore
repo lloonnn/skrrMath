@@ -20,3 +20,11 @@ replit.nix
 /supabase/migrations/README.md
 /e2e/README.md
 /scripts/README.md
+
+# Not shared on GitHub (owner decision)
+/CLAUDE.md
+/docs/PLAN.md
+/docs/TEST-LOG.md
+/docs/LECTURER-PLAN.md
+/docs/mockup/
+/docs/STATUS.md

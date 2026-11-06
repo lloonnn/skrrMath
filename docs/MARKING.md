@@ -1,6 +1,6 @@
 # Marking
 
-How the AI marks a question block. This is a design. It has not been tested beyond a first Replit demo that marked one page.
+How the AI marks a question block. This is built in `marking-service/src/pipeline/`. It was tested mostly on the owner's five handwritten pages and on typed made-up questions. Handwriting reading is still the weak part.
 
 ## Goals
 
@@ -16,14 +16,13 @@ Studies on AI marking of handwritten maths (see the notes in the knowledge-base 
 
 - The question block image (the question).
 - The answer region image (your handwriting below the block, up to the next block).
-- Optional verified answer: handwriting, an image or text, from the user or the shared bank.
-- Tags: course code, exam year, question number.
+- Optional reference: a lecturer's answer book (found by course name and note name), or the student's own correct answer (typed or a picture). The lecturer's book wins.
 
 ## Pipeline
 
-1. **Transcribe.** Restate the question. Copy the answer line by line, as LaTeX. Flag any line the model is unsure it read. Do not mark yet.
+1. **Transcribe.** Find the handwritten lines, cut one picture per line, and read them (see "Reading each line on its own" below). Copy each line as LaTeX. Flag any line the model is unsure it read. Do not mark yet.
 2. **Reference.**
-   - If a verified answer exists, use it.
+   - If a reference exists, use it. A lecturer's book holds several solutions, so the AI first finds the one for this question and says so (`book_match`). If it cannot find it, the service marks as if there were no book.
    - If not, solve the question independently `MARK_SOLVE_RUNS` times (default 2), without looking at the student's work. If the final answers disagree, the status is "unsure": do not judge the final answer.
 3. **Check the lines.** For each readable line, decide whether it follows from the previous line. This check does not need the reference.
 4. **Mark like a teacher.**
@@ -78,17 +77,17 @@ Studies on AI marking of handwritten maths (see the notes in the knowledge-base 
 Label under the block:
 - "AI-checked" when `reference_source` is `ai_solved`. It means the AI marked from its own reasoning. It does not mean the answer is correct. (The owner chose this wording on 2026-11-02 in place of "Not verified".)
 - "Checked against your answer" for a user's own reference.
-- The bank's trust level for a bank answer (stage two).
+- "Checked against a lecturer's solution" when a lecturer's answer book was used.
 
 The "what it read" link opens the transcription so the student can fix a misread and mark again. The marking layer can be hidden.
 
 ## Per-line marks
 
-Status 2026-11-02: version 2 is built (see `STATUS.md`). It falls back to version 1 when boxes are missing.
+Status: version 2 is built. It falls back to version 1 when boxes are missing.
 
 Version 1 puts one margin comment per block, with a tick or cross for the whole answer. Version 2 places marks beside each line. Version 2 needs the model to say where each handwritten line is on the image.
 
-Tested on 2026-11-01 on one page (the owner's page 2): Gemini returned 17 boxes in `[ymin, xmin, ymax, xmax]` on a 0 to 1000 scale, one per handwritten line, in order, and every box sat on the right line (see `img/locate-overlay-page2.png`). Small flaws: two boxes overlapped vertically where fractions were stacked, and one box clipped the right edge a little. So version 2 looks feasible. Add a margin of a few percent to each box, and test on more pages before relying on it.
+Tested on 2026-11-01 on one page (the owner's page 2): Gemini returned 17 boxes in `[ymin, xmin, ymax, xmax]` on a 0 to 1000 scale, one per handwritten line, in order, and every box sat on the right line (see `img/locate-overlay-ode-page2.png`). Small flaws: two boxes overlapped vertically where fractions were stacked, and one box clipped the right edge a little. So version 2 looks feasible. Add a margin of a few percent to each box, and test on more pages before relying on it.
 
 ## Reading each line on its own
 
@@ -108,7 +107,7 @@ On the same page, the line-locating call returned text in which the student's si
 - The transcription prompt says: copy exactly what is written, including errors. Never correct, simplify or complete anything.
 - Do not use the text returned by a locating call as the transcription for marking. Use the boxes only for position, and match each box to a line of the literal transcription.
 - Automated test with the mock model: a transcription that differs from the fixture's written line fails the pipeline check.
-- Manual test: page 2 must transcribe line 12 as `+3 ln|x|` and line 17 as `+ 8x^3` with the plus sign on the log term. Record pass or fail in `TEST-LOG.md` each time the prompt changes.
+- Manual test: page 2 must transcribe line 12 as `+3 ln|x|` and line 17 as `+ 8x^3` with the plus sign on the log term. Record pass or fail each time the prompt changes.
 
 ## Question types
 
@@ -132,7 +131,7 @@ Also test: a correct solution that uses different steps from the reference. It m
 
 ## Cost
 
-Up to four calls per marking when no verified answer exists if every step is separate (transcribe, solve twice, mark). Steps can be merged to cut calls. Measure on the usage page. The demo was about 0.01 per call, unit not confirmed.
+About five calls per marking when there is no reference (locate, read the lines, solve twice, mark), fewer with one. The cost per marking is not measured. Check the usage page of your Google account.
 
 ## Speed
 

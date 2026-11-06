@@ -1,0 +1,12 @@
+{
+  "name": "skrrmath",
+  "private": true,
+  "description": "Root helper: npm install sets up all three folders, npm run dev starts the app and the marking service.",
+  "scripts": {
+    "postinstall": "npm --prefix shared install && npm --prefix marking-service install && npm --prefix web install",
+    "dev": "concurrently -k -n app,marking \"npm --prefix web run dev\" \"npm --prefix marking-service start\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
