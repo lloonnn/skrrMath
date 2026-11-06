@@ -23,6 +23,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   onOpen: (yearId: string) => void
   actions: CourseActions
   session: Session | null
+  onOpenLecturer: () => void
 }
 
 export function AppSidebar({
@@ -31,6 +32,7 @@ export function AppSidebar({
   onOpen,
   actions,
   session,
+  onOpenLecturer,
   ...props
 }: AppSidebarProps) {
   return (
@@ -59,7 +61,7 @@ export function AppSidebar({
         />
       </SidebarContent>
       <SidebarFooter>
-        <UserBox session={session} />
+        <UserBox session={session} onOpenLecturer={onOpenLecturer} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -7,7 +7,13 @@ import { supabase } from "@/lib/supabase"
 
 // The bottom of the left panel. A guest sees "Sign in". Signed in shows the real
 // account and "Sign out". Cloud save comes next. For now the list stays in this browser.
-export function UserBox({ session }: { session: Session | null }) {
+export function UserBox({
+  session,
+  onOpenLecturer,
+}: {
+  session: Session | null
+  onOpenLecturer: () => void
+}) {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -26,6 +32,9 @@ export function UserBox({ session }: { session: Session | null }) {
     return (
       <div className="flex flex-col gap-1 px-2 py-2">
         <p className="truncate text-sm font-medium">{session.user.email}</p>
+        <Button size="sm" variant="outline" onClick={onOpenLecturer}>
+          Lecturer
+        </Button>
         <Button
           size="sm"
           variant="outline"

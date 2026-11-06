@@ -45,7 +45,8 @@ const check = (name, ok, detail = "") => {
 }
 const refused = (r) => r.status >= 400
 const empty = (r) => Array.isArray(r.rows) && r.rows.length === 0
-const key = (n) => ({ course_code: "TEST" + (1000 + n), exam: "2099 may", question: "1a" + n })
+// One book per paper: the key is the course code and the exam.
+const key = (n) => ({ course_code: "TEST" + (1000 + n), exam: "2099 may" })
 const text = (t = "x = 4") => ({ answer_text: t })
 
 const users = []
@@ -91,25 +92,25 @@ try {
   check("even its own lecturer cannot delete it", empty(await as(L1, "DELETE", `bank_solutions?id=eq.${sol?.id}`)) || refused(await as(L1, "DELETE", `bank_solutions?id=eq.${sol?.id}`)))
   check("it is unchanged after all that", (await as(S1, "GET", `bank_solutions?id=eq.${sol?.id}`)).rows?.[0]?.answer_text === "x = 4")
   check("a lecturer cannot add a solution as another lecturer", refused(await as(L1, "POST", "bank_solutions", { ...key(2), ...text(), lecturer: L2.id })))
-  check("a second live solution for the same key is refused", refused(await as(L2, "POST", "bank_solutions", { ...key(1), ...text("y = 5") })))
+  check("a second live book for the same paper is refused", refused(await as(L2, "POST", "bank_solutions", { ...key(1), ...text("y = 5") })))
   check("a different key is fine for another lecturer", (await as(L2, "POST", "bank_solutions", { ...key(3), ...text("z = 6") })).status === 201)
 
   console.log("-- the author changes it")
   const upd = await as(L1, "PATCH", `bank_solutions?id=eq.${sol?.id}`, text("x = 4 (checked)"))
   check("the author can change it", upd.rows?.[0]?.answer_text === "x = 4 (checked)", JSON.stringify(upd.json).slice(0, 150))
   check("the version went up by one", upd.rows?.[0]?.version === 2)
-  check("the key cannot be changed", refused(await as(L1, "PATCH", `bank_solutions?id=eq.${sol?.id}`, { question: "9z" })))
+  check("the paper (course and exam) cannot be changed", refused(await as(L1, "PATCH", `bank_solutions?id=eq.${sol?.id}`, { exam: "2099 oct" })))
   check("the author cannot be changed", refused(await as(L1, "PATCH", `bank_solutions?id=eq.${sol?.id}`, { lecturer: L2.id })))
 
   console.log("-- the shape of a solution")
   check("a course code that is not cleaned is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), course_code: "uecm2323", ...text() })))
   check("an exam that is not cleaned is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), exam: "May 2099", ...text() })))
-  check("a question with a space is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), question: "23 a", ...text() })))
   check("a solution with no text and no picture is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4) })))
   check("a solution with both text and a picture is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), ...text(), answer_image: "AAAA", answer_image_type: "image/png" })))
   check("a picture without its type is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), answer_image: "AAAA" })))
   check("a picture solution is accepted", (await as(L1, "POST", "bank_solutions", { ...key(5), answer_image: "AAAA", answer_image_type: "image/png" })).status === 201)
-  check("a very long text is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), answer_text: "x".repeat(5001) })))
+  check("a book of 30000 characters is accepted", (await as(L1, "POST", "bank_solutions", { ...key(10), answer_text: "x".repeat(30000) })).status === 201)
+  check("a book over 30000 characters is refused", refused(await as(L1, "POST", "bank_solutions", { ...key(4), answer_text: "x".repeat(30001) })))
 
   console.log("-- withdrawing")
   const wd = await as(L1, "PATCH", `bank_solutions?id=eq.${sol?.id}`, { withdrawn: true })

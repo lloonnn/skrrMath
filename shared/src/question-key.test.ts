@@ -68,3 +68,15 @@ describe("the key", () => {
     expect(questionKey({ course: "AB12", exam: "", question: "1" })).toBeNull()
   })
 })
+
+import { paperParts } from "./question-key.ts"
+
+describe("paperParts", () => {
+  it("cleans the course code and the exam", () =>
+    expect(paperParts({ courseCode: " uecm-2353 ", exam: "May 2023" })).toEqual({ course: "UECM2353", exam: "2023 may" }))
+  it("matches what a student's course and note give", () =>
+    expect(paperParts({ courseCode: "UECM2353", exam: "2023 May" })).toEqual(paperParts({ courseCode: "uecm 2353", exam: "may-2023" })))
+  it("gives null for a part that cannot be used", () => {
+    expect(paperParts({ courseCode: "Calculus", exam: "" })).toEqual({ course: null, exam: null })
+  })
+})

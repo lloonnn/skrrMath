@@ -62,3 +62,12 @@ export function missingKeyParts(parts: KeyParts): string[] {
   if (!parts.question) out.push("question label")
   return out
 }
+
+// The key of a paper (one lecturer answer book): the cleaned course code and exam. Same cleaning
+// as for a student's course and note, so the two meet. Either part can be null.
+export function paperParts(input: { courseCode: string; exam: string }): { course: string | null; exam: string | null } {
+  return {
+    course: input.courseCode ? normaliseCourseCode(input.courseCode) : null,
+    exam: input.exam ? cleanExamLabel(input.exam) : null,
+  }
+}

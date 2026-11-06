@@ -1,6 +1,11 @@
 # Lecturer-verified solutions (option A)
 
-Status: phase 2 is built. Phase 1 was cut down on 2026-11-05 (see below). Phases 3 to 5 are not started. Written 2026-11-03 after the owner chose option A.
+Status (2026-11-06): option C is being built in four steps.
+- Step 1, database: done. One answer book per paper (`0007_one_book_per_paper.sql`): the key is the course code and the exam, the `question` column is gone, a book can be up to 30000 characters of text or one picture. `scripts/bank-rls-test.mjs` passes again.
+- Step 2, lecturer screen: done. A signed-in person taps Lecturer (bottom left), gives the code, then adds one book per paper (typed or a picture), changes it (text or picture, either way round), or withdraws it. `e2e/lecturer-screen.mjs`, 21 checks.
+- Step 3, marking uses the book: not started. The app looks it up from the course name and the note name, sends it with the question, and the label says which solution was used.
+- Step 4, checks and handover: not started.
+The phases below (1 to 5) are the earlier plan. Phase 1 (question labels) and decision D7 no longer apply. Written 2026-11-03 after the owner chose option A.
 
 ## Goal
 
@@ -19,6 +24,10 @@ Out (option B and the rest of stage two):
 - Reviewing individual AI markings.
 - Flagging a wrong mark.
 - Students adding answers, confirmations, reports, trust levels other than lecturer.
+
+## Option C works in tests (2026-11-06): one answer book per paper
+
+Instead of one solution per question with a question label, the lecturer adds ONE document per paper (course and exam). Marking sends the AI the question, the student's writing and the whole book, and the AI finds the matching solution itself. Tested on made-up typed questions: 12 of 12, then 14 of 14 with a 20-question book and with no question number in the image (`TEST-LOG.md`). If this is built, decision D7 (where the question label comes from) is no longer needed, and the database table changes from one row per question to one row per paper (the `question` column goes). Not yet tested: handwriting, a real long paper, a lecturer's book that is a picture. A wrong match is possible, so the result should say which solution was used.
 
 ## What this does not fix
 

@@ -46,6 +46,7 @@ import {
   useCloudNote,
   useGuestNote,
 } from "@/features/cloud/use-cloud-note"
+import { LecturerScreen } from "@/features/lecturer/lecturer-screen"
 import { uid } from "@/lib/uid"
 
 const STATUS_TEXT = {
@@ -75,6 +76,7 @@ export function App() {
 
   const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null)
   const [marginOpen, setMarginOpen] = React.useState(true)
+  const [showLecturer, setShowLecturer] = React.useState(false)
   const [blocks, setBlocks] = React.useState<SceneBlock[]>([])
   // The note as it is now. Read when Mark is pressed, so it is a ref, not state.
   const latestScene = React.useRef<Scene | null>(null)
@@ -308,115 +310,125 @@ export function App() {
         }}
         actions={actions}
         session={session}
+        onOpenLecturer={() => setShowLecturer(true)}
       />
       <SidebarInset>
-        <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-12 shrink-0 items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
-              {activePaper && (
-                <span className="text-sm text-muted-foreground">
-                  {activePaper.code} · {activePaper.year}
-                </span>
-              )}
-              <span
-                className={
-                  "ml-auto text-xs " +
-                  (problem ? "text-red-700" : "text-muted-foreground")
-                }
-                role="status"
-              >
-                {problem ??
-                  notice ??
-                  (exporting ? "Exporting PDF..." : null) ??
-                  (activePaper
-                    ? (signedIn ? STATUS_TEXT : GUEST_STATUS_TEXT)[note.status]
-                    : "")}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label="Export as PDF"
-                      title="Export as PDF"
-                      disabled={
-                        !activePaper || blocks.length === 0 || exporting
-                      }
-                    />
+        {showLecturer && userId ? (
+          <LecturerScreen
+            userId={userId}
+            onClose={() => setShowLecturer(false)}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+                <SidebarTrigger className="-ml-1" />
+                {activePaper && (
+                  <span className="text-sm text-muted-foreground">
+                    {activePaper.code} · {activePaper.year}
+                  </span>
+                )}
+                <span
+                  className={
+                    "ml-auto text-xs " +
+                    (problem ? "text-red-700" : "text-muted-foreground")
                   }
+                  role="status"
                 >
-                  <FileDown />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => void exportPdf(true)}>
-                    Marked PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void exportPdf(false)}>
-                    Clean PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label={
-                  marginOpen ? "Close marking panel" : "Open marking panel"
-                }
-                title={
-                  marginOpen ? "Close marking panel" : "Open marking panel"
-                }
-                onClick={() => setMarginOpen((o) => !o)}
-              >
-                <PanelRight />
-              </Button>
-            </header>
-            <div className="min-h-0 flex-1">
-              {activePaper && activeNoteId ? (
-                note.ready ? (
-                  <NoteCanvas
-                    key={activeNoteId}
-                    initial={note.initial}
-                    onScene={(scene) => {
-                      const full = withExtras(scene, activeNoteId)
-                      latestScene.current = full
-                      note.onScene(full)
-                    }}
-                    onBlocks={setBlocks}
-                  />
+                  {problem ??
+                    notice ??
+                    (exporting ? "Exporting PDF..." : null) ??
+                    (activePaper
+                      ? (signedIn ? STATUS_TEXT : GUEST_STATUS_TEXT)[
+                          note.status
+                        ]
+                      : "")}
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Export as PDF"
+                        title="Export as PDF"
+                        disabled={
+                          !activePaper || blocks.length === 0 || exporting
+                        }
+                      />
+                    }
+                  >
+                    <FileDown />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => void exportPdf(true)}>
+                      Marked PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void exportPdf(false)}>
+                      Clean PDF
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={
+                    marginOpen ? "Close marking panel" : "Open marking panel"
+                  }
+                  title={
+                    marginOpen ? "Close marking panel" : "Open marking panel"
+                  }
+                  onClick={() => setMarginOpen((o) => !o)}
+                >
+                  <PanelRight />
+                </Button>
+              </header>
+              <div className="min-h-0 flex-1">
+                {activePaper && activeNoteId ? (
+                  note.ready ? (
+                    <NoteCanvas
+                      key={activeNoteId}
+                      initial={note.initial}
+                      onScene={(scene) => {
+                        const full = withExtras(scene, activeNoteId)
+                        latestScene.current = full
+                        note.onScene(full)
+                      }}
+                      onBlocks={setBlocks}
+                    />
+                  ) : (
+                    <p className="p-6 text-sm text-muted-foreground">
+                      Opening this note...
+                    </p>
+                  )
                 ) : (
                   <p className="p-6 text-sm text-muted-foreground">
-                    Opening this note...
+                    {userId && !account.ready
+                      ? "Loading your notes..."
+                      : tree.some((c) => c.years.length > 0)
+                        ? "Open a note from the list on the left to write."
+                        : "Add a course, then a note, in the list on the left. Then open the note to write."}
                   </p>
-                )
-              ) : (
-                <p className="p-6 text-sm text-muted-foreground">
-                  {userId && !account.ready
-                    ? "Loading your notes..."
-                    : tree.some((c) => c.years.length > 0)
-                      ? "Open a note from the list on the left to write."
-                      : "Add a course, then a note, in the list on the left. Then open the note to write."}
-                </p>
-              )}
+                )}
+              </div>
             </div>
+            <MarkingMargin
+              open={marginOpen}
+              blocks={blocks}
+              paper={activePaper}
+              signedIn={session !== null}
+              getScene={() => latestScene.current}
+              noteKey={`${activeNoteId ?? "none"}:${note.ready ? "ready" : "loading"}`}
+              initialMarks={note.initial?.marks ?? {}}
+              onMarks={onMarks}
+              initialReferences={note.initial?.references ?? {}}
+              onReferences={onReferences}
+              onStates={(states) => {
+                latestStates.current = states
+              }}
+            />
           </div>
-          <MarkingMargin
-            open={marginOpen}
-            blocks={blocks}
-            paper={activePaper}
-            signedIn={session !== null}
-            getScene={() => latestScene.current}
-            noteKey={`${activeNoteId ?? "none"}:${note.ready ? "ready" : "loading"}`}
-            initialMarks={note.initial?.marks ?? {}}
-            onMarks={onMarks}
-            initialReferences={note.initial?.references ?? {}}
-            onReferences={onReferences}
-            onStates={(states) => {
-              latestStates.current = states
-            }}
-          />
-        </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   )
