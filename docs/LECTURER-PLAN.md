@@ -1,6 +1,6 @@
 # Lecturer-verified solutions (option A)
 
-Status: phase 1 is built (2026-11-03). Phases 2 to 5 are not started. Written 2026-11-03 after the owner chose option A.
+Status: phase 2 is built. Phase 1 was cut down on 2026-11-05 (see below). Phases 3 to 5 are not started. Written 2026-11-03 after the owner chose option A.
 
 ## Goal
 
@@ -36,25 +36,18 @@ flowchart LR
   P4 --> P5["Phase 5: checks and handover"]
 ```
 
-### Phase 1: question keys
+### Phase 1: question keys (cut down: no screens, no typing for the student)
 
-Why first: a solution can only be found if the student's question and the lecturer's solution have the same key. The key is course code, exam, question label.
+The owner said the course code box and the question label box were too much to type, and that nothing used them yet. They were removed on 2026-11-05. The rule from now on: **add nothing the student has to type.**
 
-Build:
-1. A course code on each course (separate from its display name), cleaned by one shared function (for example "uecm 2323" and "UECM2323" are the same).
-2. The exam is the note name, cleaned the same way ("2023 May" and "may 2023" need a rule, see decision D3).
-3. A question label on each question (for example "23a"), typed once, saved with the note. It starts empty and the marking works without it. The bank lookup needs it.
-4. One function in `shared/` that makes the key, with tests.
+What is left is only the cleaning logic, in `shared/src/question-key.ts` (29 tests): `cleanExamLabel`, `cleanQuestionLabel`, `keyParts`, `questionKey`. The lecturer screen (phase 3) needs it, because the database only accepts cleaned keys.
 
-Done when: each question shows its key, and the same question typed two ways gives one key.
-Size: small to medium.
+Where each part of a key comes from, with no new typing:
+- Course: the course name, when it looks like a code (the existing `normaliseCourseCode`; "uecm 2353" gives UECM2353). If the name is not a code, there is no match and nothing is shown. The student can simply name the course by its code.
+- Exam: the note name, cleaned (D3: lowercase, no punctuation, words sorted).
+- Question: see D7. This is the only part with no source yet.
 
-Built, as follows. The exam rule is the proposal in D3 (lowercase, no punctuation, words sorted), still waiting for the owner's answer.
-- `shared/src/question-key.ts`: `cleanExamLabel`, `cleanQuestionLabel`, `keyParts`, `questionKey`, `missingKeyParts`. 29 tests.
-- A course code on each course: `courseCode` in the list (`shared/src/papers.ts`), `courses.course_code` in the database (`supabase/migrations/0003_course_code.sql`, applied). Set by hand in the course's menu ("Course code"). If it is not set, it is worked out from the name when the name looks like a code ("uecm 2353" gives UECM2353). The guest's code goes up at sign-in.
-- A question label box on each question, saved with the note (`pages.strokes.labels`).
-- The question shows its key, or what it still needs.
-- Tested: 170 shared tests and `e2e/question-keys.mjs` (13 checks).
+Removed again: the course-code menu item, the label box, the key line, the saved labels, and the database column (`0005_drop_course_code.sql` drops what `0003` added).
 
 ### Phase 2: roles and database
 
@@ -78,6 +71,14 @@ Tests, with three accounts (student A, student B, lecturer):
 
 Done when: all the checks pass, in the same style as `scripts/rls-test.mjs`.
 Size: large. It is the riskiest phase, because a hole here exposes or corrupts shared data.
+
+Built, with the owner's answers to D1 and D4 (`supabase/migrations/0004_lecturer_solutions.sql`, applied):
+- `profiles` (role student or lecturer). A person reads only their own row. Nothing in the app can write a role.
+- D1, the lecturer code: `LECTURER_CODE` in `.env`, stored as a salted bcrypt hash by `scripts/set-lecturer-code.mjs` (service role only). A signed-in person gives the code to `claim_lecturer(code)`, which returns `lecturer`, `wrong_code`, `locked` or `not_set`. Five wrong tries in an hour lock that person for an hour. The hash and the attempts are not readable by anyone in the app.
+- `bank_solutions`: the key (course code, exam, question, shaped by checks), text or a picture of the solution only, the lecturer, a version number that goes up on every change, `withdrawn`, and times. One live solution per key.
+- D4, access: every signed-in user reads live solutions. Only a lecturer adds, as themselves. Only the author changes or withdraws it, and only while still a lecturer. The key and the author cannot change. No delete.
+- Test: `scripts/bank-rls-test.mjs`, 4 temporary accounts (2 students, 2 lecturers), 58 checks including the code and the lock. When no code is stored, it stores a throwaway one for the test and removes it.
+- Not done in this phase: any screen. A person cannot yet claim the code in the app (phase 3).
 
 ### Phase 3: lecturer screen
 
@@ -112,11 +113,12 @@ Size: medium.
 
 These are open. Nothing is assumed.
 
-- D1. How does someone become a lecturer? Proposal: the owner sets the role by hand in Supabase. A course invite code can come later.
+- D1 (answered 2026-11-03). How does someone become a lecturer? The owner chose a preset code in `.env`. Built in phase 2.
 - D2. A student has their own correct answer and a lecturer solution exists. Which wins? Proposal: the student's own answer wins, because they chose to add it, and the label says whose it is.
 - D3. How are exams matched? Notes are free text ("2023 May", "May 2023"). Proposal: a cleaning rule (lowercase, no punctuation, words sorted) plus a pick-list of the exams that already have a solution, so students pick instead of type.
-- D4. Who can read a solution? Proposal: every signed-in student. There is no course membership in the app yet.
+- D4 (answered 2026-11-03). Who can read a solution? Every signed-in student, as proposed.
 - D5. Copyright and school rules about sharing solutions. Not checked. The owner or the lecturer should check before real use.
+- D7. Where does the question label come from, with no typing? Proposal: when the student presses Mark, the AI reads the question number from the pasted question image (the marking already reads that image), the app uses it for the lookup, and shows one small line, for example "Using the lecturer's solution for 23a", so a wrong match is visible. The student can turn it off. Needs a test on real question images, because a wrong number would use the wrong solution.
 - D6. Can a lecturer add a handwritten solution on the canvas? Proposal: no, typed text or a picture first.
 
 ## Risks

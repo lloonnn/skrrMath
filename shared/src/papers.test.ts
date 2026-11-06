@@ -72,8 +72,7 @@ describe("remove", () => {
 })
 
 describe("findPaper (the open note)", () => {
-  it("gives the course and year", () =>
-    expect(findPaper(sample(), "y1")).toEqual({ code: "MATH201", year: "2023", courseCode: "MATH201", exam: "2023" }))
+  it("gives the course and year", () => expect(findPaper(sample(), "y1")).toEqual({ code: "MATH201", year: "2023" }))
   it("gives null for none, a course id, or an unknown id", () => {
     expect(findPaper(sample(), null)).toBeNull()
     expect(findPaper(sample(), "c1")).toBeNull()
@@ -160,79 +159,5 @@ describe("mergeLocalIntoCloud", () => {
     const copy = JSON.parse(JSON.stringify(cloud))
     mergeLocalIntoCloud(cloud, local, fresh)
     expect(cloud).toEqual(copy)
-  })
-})
-
-import { effectiveCourseCode, setCourseCode } from "./papers.ts"
-
-describe("course code", () => {
-  const named = (name: string): PaperTree => must(addCourse([], name, "c1"))
-
-  it("comes from the name when the name looks like a code", () => {
-    expect(effectiveCourseCode(named("UECM2353")[0])).toBe("UECM2353")
-    expect(effectiveCourseCode(named("uecm 2353")[0])).toBe("UECM2353")
-  })
-  it("is null when the name is not a code", () => expect(effectiveCourseCode(named("Calculus II")[0])).toBeNull())
-  it("is set by hand, and cleaned", () => {
-    const t = must(setCourseCode(named("Calculus II"), "c1", " uecm-2323 "))
-    expect(t[0].courseCode).toBe("UECM2323")
-    expect(effectiveCourseCode(t[0])).toBe("UECM2323")
-  })
-  it("a code set by hand wins over the name", () => {
-    const t = must(setCourseCode(named("UECM2353"), "c1", "MATH101"))
-    expect(effectiveCourseCode(t[0])).toBe("MATH101")
-  })
-  it("an empty input clears it, and the name is used again", () => {
-    let t = must(setCourseCode(named("UECM2353"), "c1", "MATH101"))
-    t = must(setCourseCode(t, "c1", "  "))
-    expect(t[0].courseCode).toBeUndefined()
-    expect(effectiveCourseCode(t[0])).toBe("UECM2353")
-  })
-  it("refuses something that is not a code, and a course that is gone", () => {
-    expect(setCourseCode(named("x"), "c1", "calculus two")).toMatchObject({ ok: false })
-    expect(setCourseCode(named("x"), "nope", "UECM2353")).toMatchObject({ ok: false })
-  })
-  it("does not change the list passed in", () => {
-    const t = named("Calculus II")
-    setCourseCode(t, "c1", "UECM2323")
-    expect(t[0].courseCode).toBeUndefined()
-  })
-  it("findPaper gives the cleaned course code and exam for the key", () => {
-    let t = must(setCourseCode(named("Calculus II"), "c1", "uecm2323"))
-    t = must(addYear(t, "c1", "May 2023", "y1"))
-    expect(findPaper(t, "y1")).toEqual({ code: "Calculus II", year: "May 2023", courseCode: "UECM2323", exam: "2023 may" })
-  })
-  it("findPaper gives null course code when there is none", () => {
-    const t = must(addYear(named("Calculus II"), "c1", "2023", "y1"))
-    expect(findPaper(t, "y1")?.courseCode).toBeNull()
-  })
-  it("survives a save and load, and a bad saved code is dropped", () => {
-    const t = must(setCourseCode(named("Calculus II"), "c1", "UECM2323"))
-    expect(readTree(JSON.parse(JSON.stringify(t)))[0].courseCode).toBe("UECM2323")
-    expect(readTree([{ id: "c", code: "A", courseCode: "not a code!", years: [] }])[0].courseCode).toBeUndefined()
-  })
-  it("is read from the database column", () => {
-    const t = buildTree([{ id: "c", name: "Calculus II", course_code: "UECM2323" }, { id: "d", name: "Other", course_code: null }], [])
-    expect(t[0].courseCode).toBe("UECM2323")
-    expect(t[1].courseCode).toBeUndefined()
-  })
-  it("a guest course code goes up with a new course", () => {
-    const local: PaperTree = [{ id: "00000000-0000-4000-8000-000000000001", code: "Calc", courseCode: "UECM2323", years: [] }]
-    const r = mergeLocalIntoCloud([], local, () => "00000000-0000-4000-8000-000000000099")
-    expect(r.newCourses[0].courseCode).toBe("UECM2323")
-  })
-  it("a guest course code fills an account course that has none", () => {
-    const cloud: PaperTree = [{ id: "00000000-0000-4000-8000-000000000050", code: "Calc", years: [] }]
-    const local: PaperTree = [{ id: "00000000-0000-4000-8000-000000000001", code: "calc", courseCode: "UECM2323", years: [] }]
-    const r = mergeLocalIntoCloud(cloud, local, () => "00000000-0000-4000-8000-000000000099")
-    expect(r.codeUpdates).toEqual([{ id: "00000000-0000-4000-8000-000000000050", courseCode: "UECM2323" }])
-    expect(r.merged[0].courseCode).toBe("UECM2323")
-  })
-  it("a guest course code does not replace one the account already has", () => {
-    const cloud: PaperTree = [{ id: "00000000-0000-4000-8000-000000000050", code: "Calc", courseCode: "MATH101", years: [] }]
-    const local: PaperTree = [{ id: "00000000-0000-4000-8000-000000000001", code: "calc", courseCode: "UECM2323", years: [] }]
-    const r = mergeLocalIntoCloud(cloud, local, () => "00000000-0000-4000-8000-000000000099")
-    expect(r.codeUpdates).toEqual([])
-    expect(r.merged[0].courseCode).toBe("MATH101")
   })
 })

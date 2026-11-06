@@ -5,7 +5,6 @@ import {
   addCourse,
   addYear,
   findPaper,
-  setCourseCode,
   remove,
   rename,
   type Edit,
@@ -30,7 +29,6 @@ import { MarkingMargin } from "@/features/marking/marking-margin"
 import type { SavedMarks } from "@/features/marking/saved-marks"
 import type { MarkState } from "@/features/marking/question-section"
 import type { References } from "@/features/marking/reference"
-import type { Labels } from "@/features/marking/labels"
 import { NoteCanvas, type Scene } from "@/features/canvas/note-canvas"
 import { usePaperTree } from "@/features/papers/use-paper-tree"
 import { useSession } from "@/features/auth/use-session"
@@ -40,7 +38,6 @@ import {
   insertCourse,
   insertYear,
   renameCourse,
-  setCourseCodeCloud,
   renameYear,
 } from "@/features/cloud/cloud"
 import { useAccountTree } from "@/features/cloud/use-account-tree"
@@ -98,11 +95,6 @@ export function App() {
   const latestStates = React.useRef<Record<string, MarkState>>({})
   const [exporting, setExporting] = React.useState(false)
   const [exportMessage, setExportMessage] = React.useState<string | null>(null)
-  // The question labels ("23a") of the open note. Saved the same way.
-  const latestLabels = React.useRef<{ noteId: string | null; labels: Labels }>({
-    noteId: null,
-    labels: {},
-  })
   const [syncMessage, setSyncMessage] = React.useState<string | null>(null)
 
   const activePaper = findPaper(tree, activeNoteId)
@@ -118,8 +110,6 @@ export function App() {
       latestMarks.current = { noteId, marks: note.initial?.marks ?? {} }
     if (latestRefs.current.noteId !== noteId)
       latestRefs.current = { noteId, refs: note.initial?.references ?? {} }
-    if (latestLabels.current.noteId !== noteId)
-      latestLabels.current = { noteId, labels: note.initial?.labels ?? {} }
     const live = new Set(
       scene.elements
         .filter((e) => !e.isDeleted && e.type === "image")
@@ -131,7 +121,6 @@ export function App() {
       ...scene,
       marks: keep(latestMarks.current.marks),
       references: keep(latestRefs.current.refs),
-      labels: keep(latestLabels.current.labels),
     }
   }
 
@@ -148,11 +137,6 @@ export function App() {
   function onMarks(marks: SavedMarks) {
     if (!activeNoteId) return
     latestMarks.current = { noteId: activeNoteId, marks }
-    saveExtras()
-  }
-  function onLabels(labels: Labels) {
-    if (!activeNoteId) return
-    latestLabels.current = { noteId: activeNoteId, labels }
     saveExtras()
   }
   function onReferences(refs: References) {
@@ -267,20 +251,6 @@ export function App() {
                 id,
                 courseId,
                 e.tree.flatMap((c) => c.years).find((y) => y.id === id)!.year
-              )
-          : undefined
-      )
-    },
-    setCourseCode: (courseId, input) => {
-      const e = setCourseCode(tree, courseId, input)
-      return apply(
-        e,
-        undefined,
-        e.ok
-          ? () =>
-              setCourseCodeCloud(
-                courseId,
-                e.tree.find((c) => c.id === courseId)?.courseCode ?? null
               )
           : undefined
       )
@@ -442,8 +412,6 @@ export function App() {
             onMarks={onMarks}
             initialReferences={note.initial?.references ?? {}}
             onReferences={onReferences}
-            initialLabels={note.initial?.labels ?? {}}
-            onLabels={onLabels}
             onStates={(states) => {
               latestStates.current = states
             }}

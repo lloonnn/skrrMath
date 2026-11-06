@@ -1,4 +1,7 @@
 -- DRAFT of the shared bank (stage two). NOT applied.
+-- The lecturer solutions (option A in docs/LECTURER-PLAN.md) are built and applied, as bank_solutions,
+-- in supabase/migrations/0004_lecturer_solutions.sql. The tables below are for student answers,
+-- confirmations and reports, which are not part of option A.
 -- The private tables (courses, years, papers, pages, question_blocks, markings) moved to
 -- supabase/migrations/0001_private_tables.sql, which is applied.
 -- Problem to solve before the bank is built: names are now free text, so two students may

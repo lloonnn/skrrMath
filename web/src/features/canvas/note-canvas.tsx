@@ -4,7 +4,6 @@ import "@excalidraw/excalidraw/index.css"
 import type { ExcalidrawProps } from "@excalidraw/excalidraw/types"
 import type { SavedMarks } from "@/features/marking/saved-marks"
 import type { References } from "@/features/marking/reference"
-import type { Labels } from "@/features/marking/labels"
 
 import { blocksFromScene, type SceneBlock } from "@shared/index.ts"
 
@@ -16,8 +15,6 @@ export type Scene = {
   marks?: SavedMarks
   // The student's own correct answer for each question, by question id.
   references?: References
-  // The label of each question ("23a"), by question id.
-  labels?: Labels
 }
 
 // The note canvas for one paper. Strokes stay in Excalidraw's own scene.

@@ -7,7 +7,7 @@ import {
   PlusIcon,
 } from "lucide-react"
 
-import { effectiveCourseCode, type PaperTree } from "@shared/index.ts"
+import type { PaperTree } from "@shared/index.ts"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -23,8 +23,6 @@ export type CourseActions = {
   addCourse: (input: string) => string | null
   addYear: (courseId: string, input: string) => string | null
   rename: (id: string, input: string) => string | null
-  // The course code used to find a course's questions. Empty clears it.
-  setCourseCode: (courseId: string, input: string) => string | null
   remove: (id: string) => void
 }
 
@@ -32,7 +30,6 @@ type Editing =
   | { kind: "add-course" }
   | { kind: "add-year"; courseId: string }
   | { kind: "rename"; id: string; initial: string }
-  | { kind: "course-code"; courseId: string; initial: string }
 
 // The list is course, then year. A year is the note you write in.
 export function NavCourses({
@@ -63,9 +60,7 @@ export function NavCourses({
         ? actions.addCourse(input)
         : editing.kind === "add-year"
           ? actions.addYear(editing.courseId, input)
-          : editing.kind === "course-code"
-            ? actions.setCourseCode(editing.courseId, input)
-            : actions.rename(editing.id, input)
+          : actions.rename(editing.id, input)
     if (error === null) setEditing(null)
     return error
   }
@@ -75,16 +70,10 @@ export function NavCourses({
     editing?.kind === "rename" && editing.id === id
   const addingYearTo = (courseId: string) =>
     editing?.kind === "add-year" && editing.courseId === courseId
-  const settingCode = (courseId: string) =>
-    editing?.kind === "course-code" && editing.courseId === courseId
   const cancel = () => setEditing(null)
 
   // The row's buttons stay visible, because a tablet has no hover.
-  const optionsMenu = (
-    id: string,
-    label: string,
-    courseCode?: { initial: string }
-  ) => (
+  const optionsMenu = (id: string, label: string) => (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
@@ -104,19 +93,6 @@ export function NavCourses({
         >
           Rename
         </DropdownMenuItem>
-        {courseCode && (
-          <DropdownMenuItem
-            onClick={() =>
-              setEditing({
-                kind: "course-code",
-                courseId: id,
-                initial: courseCode.initial,
-              })
-            }
-          >
-            Course code
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {
@@ -191,14 +167,7 @@ export function NavCourses({
                 />
                 <FolderIcon className="size-4 shrink-0" />
                 {/* A long name wraps onto a second line instead of being cut off. */}
-                <span className="min-w-0 break-words">
-                  {course.code}
-                  {course.courseCode && (
-                    <span className="block text-xs text-muted-foreground">
-                      {course.courseCode}
-                    </span>
-                  )}
-                </span>
+                <span className="min-w-0 break-words">{course.code}</span>
               </button>
               <Button
                 size="icon-xs"
@@ -217,21 +186,8 @@ export function NavCourses({
               >
                 <PlusIcon />
               </Button>
-              {optionsMenu(course.id, course.code, {
-                initial: effectiveCourseCode(course) ?? "",
-              })}
+              {optionsMenu(course.id, course.code)}
             </div>
-          )}
-
-          {settingCode(course.id) && (
-            <InlineForm
-              initial={editing?.kind === "course-code" ? editing.initial : ""}
-              placeholder="Course code, like UECM2353"
-              submitLabel="Save"
-              allowEmpty
-              onSubmit={submit}
-              onCancel={cancel}
-            />
           )}
 
           {!collapsed.has(course.id) && (
@@ -289,14 +245,12 @@ function InlineForm({
   initial = "",
   placeholder,
   submitLabel,
-  allowEmpty = false,
   onSubmit,
   onCancel,
 }: {
   initial?: string
   placeholder?: string
   submitLabel: string
-  allowEmpty?: boolean
   onSubmit: (input: string) => string | null
   onCancel: () => void
 }) {
@@ -304,7 +258,7 @@ function InlineForm({
   const [error, setError] = React.useState<string | null>(null)
 
   function go() {
-    if (!allowEmpty && value.trim() === "") return
+    if (value.trim() === "") return
     setError(onSubmit(value))
   }
 

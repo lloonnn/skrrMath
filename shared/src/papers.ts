@@ -1,16 +1,10 @@
-import { normaliseCourseCode } from "./blocks.ts"
-import { cleanExamLabel } from "./question-key.ts"
-
 // The left list: course, then year. A year is one note canvas.
 // Plain functions that return a new list. They never change the one passed in.
 
 // Shown to the user as a "note" (a year, a tutorial, extra practice: any short name). It is the canvas.
 // The code and the database still call it "year".
 export type Year = { id: string; year: string }
-// "code" is the name shown in the list, whatever the person typed ("Calculus II", "UECM2353").
-// "courseCode" is the code used to find the course's questions (like UECM2353). It is only
-// kept when it was set by hand. Otherwise it comes from the name when the name looks like a code.
-export type Course = { id: string; code: string; courseCode?: string; years: Year[] }
+export type Course = { id: string; code: string; years: Year[] }
 export type PaperTree = Course[]
 
 export type Edit = { ok: true; tree: PaperTree } | { ok: false; error: string }
@@ -36,27 +30,6 @@ export function addCourse(tree: PaperTree, input: string, id: string): Edit {
   if (!n.ok) return fail(n.error)
   if (tree.some((c) => same(c.code, n.value))) return fail(`${n.value} is already in the list.`)
   return { ok: true, tree: [...tree, { id, code: n.value, years: [] }] }
-}
-
-// The course code used for the key: the one set by hand, or the name if the name looks like
-// a code ("uecm 2353" gives UECM2353), or null.
-export function effectiveCourseCode(course: Pick<Course, "code" | "courseCode">): string | null {
-  return normaliseCourseCode(course.courseCode ?? course.code)
-}
-
-// Sets the course code by hand. An empty input clears it (the name is used again).
-export function setCourseCode(tree: PaperTree, courseId: string, input: string): Edit {
-  const course = tree.find((c) => c.id === courseId)
-  if (!course) return fail("That course is gone.")
-  const trimmed = input.trim()
-  if (trimmed === "") {
-    const { courseCode: _gone, ...rest } = course
-    void _gone
-    return { ok: true, tree: tree.map((c) => (c.id === courseId ? rest : c)) }
-  }
-  const code = normaliseCourseCode(trimmed)
-  if (!code) return fail("A course code is letters then numbers, like UECM2353.")
-  return { ok: true, tree: tree.map((c) => (c.id === courseId ? { ...c, courseCode: code } : c)) }
 }
 
 export function addYear(tree: PaperTree, courseId: string, input: string, id: string): Edit {
@@ -127,25 +100,12 @@ function findYear(tree: PaperTree, yearId: string) {
 }
 
 // The open note: its course and year.
-// The open note: its course and year, and the cleaned course code and exam for the key.
-export type ActivePaper = {
-  code: string
-  year: string
-  courseCode: string | null
-  exam: string | null
-}
+export type ActivePaper = { code: string; year: string }
 
 export function findPaper(tree: PaperTree, noteId: string | null): ActivePaper | null {
   if (!noteId) return null
   const f = findYear(tree, noteId)
-  return f
-    ? {
-        code: f.course.code,
-        year: f.year.year,
-        courseCode: effectiveCourseCode(f.course),
-        exam: cleanExamLabel(f.year.year),
-      }
-    : null
+  return f ? { code: f.course.code, year: f.year.year } : null
 }
 
 // A saved list from disk is untrusted. Keep only what has the right shape.
@@ -159,8 +119,7 @@ export function readTree(raw: unknown): PaperTree {
       if (typeof y.id !== "string" || !(typeof y.year === "string" || typeof y.year === "number")) return []
       return [{ id: y.id, year: String(y.year) }]
     })
-    const courseCode = typeof c.courseCode === "string" ? normaliseCourseCode(c.courseCode) : null
-    return [{ id: c.id, code: c.code, ...(courseCode ? { courseCode } : {}), years }]
+    return [{ id: c.id, code: c.code, years }]
   })
 }
 
@@ -171,13 +130,12 @@ export const isUuid = (s: string) => UUID.test(s)
 
 // Rows from the database become the list. Years are sorted the same way as everywhere.
 export function buildTree(
-  courses: { id: string; name: string; course_code?: string | null }[],
+  courses: { id: string; name: string }[],
   years: { id: string; course_id: string; label: string }[]
 ): PaperTree {
   return courses.map((c) => ({
     id: c.id,
     code: c.name,
-    ...(c.course_code ? { courseCode: c.course_code } : {}),
     years: years
       .filter((y) => y.course_id === c.id)
       .map((y) => ({ id: y.id, year: y.label }))
@@ -194,9 +152,7 @@ export type Upload = {
   // a new one, or the id of the account's note with the same name. The writing follows it.
   yearIdMap: Record<string, string>
   merged: PaperTree
-  newCourses: { id: string; name: string; courseCode?: string }[]
-  // An account course that has no course code yet gets the guest list's code.
-  codeUpdates: { id: string; courseCode: string }[]
+  newCourses: { id: string; name: string }[]
   newYears: { id: string; courseId: string; label: string }[]
 }
 
@@ -207,7 +163,6 @@ export type Upload = {
 export function mergeLocalIntoCloud(cloud: PaperTree, local: PaperTree, newId: () => string): Upload {
   const merged: PaperTree = cloud.map((c) => ({ ...c, years: [...c.years] }))
   const newCourses: Upload["newCourses"] = []
-  const codeUpdates: Upload["codeUpdates"] = []
   const newYears: Upload["newYears"] = []
   const yearIdMap: Record<string, string> = {}
   const taken = new Set<string>(merged.flatMap((c) => [c.id, ...c.years.map((y) => y.id)]))
@@ -220,13 +175,9 @@ export function mergeLocalIntoCloud(cloud: PaperTree, local: PaperTree, newId: (
   for (const lc of local) {
     let target = merged.find((c) => same(c.code, lc.code))
     if (!target) {
-      target = { id: pick(lc.id), code: lc.code, ...(lc.courseCode ? { courseCode: lc.courseCode } : {}), years: [] }
+      target = { id: pick(lc.id), code: lc.code, years: [] }
       merged.push(target)
-      newCourses.push({ id: target.id, name: target.code, ...(lc.courseCode ? { courseCode: lc.courseCode } : {}) })
-    }
-    if (!target.courseCode && lc.courseCode && !newCourses.some((c) => c.id === target!.id)) {
-      target.courseCode = lc.courseCode
-      codeUpdates.push({ id: target.id, courseCode: lc.courseCode })
+      newCourses.push({ id: target.id, name: target.code })
     }
     for (const ly of lc.years) {
       const existing = target.years.find((y) => same(y.year, ly.year))
@@ -241,5 +192,5 @@ export function mergeLocalIntoCloud(cloud: PaperTree, local: PaperTree, newId: (
     }
     target.years.sort(byYearItem)
   }
-  return { yearIdMap, merged, newCourses, codeUpdates, newYears }
+  return { yearIdMap, merged, newCourses, newYears }
 }

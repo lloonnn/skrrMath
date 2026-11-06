@@ -15,7 +15,7 @@ function check(error: { message: string } | null) {
 
 export async function fetchTree(): Promise<PaperTree> {
   const [c, y] = await Promise.all([
-    db().from("courses").select("id, name, course_code").order("created_at"),
+    db().from("courses").select("id, name").order("created_at"),
     db().from("years").select("id, course_id, label"),
   ])
   check(c.error)
@@ -23,32 +23,8 @@ export async function fetchTree(): Promise<PaperTree> {
   return buildTree(c.data ?? [], y.data ?? [])
 }
 
-export async function insertCourse(
-  id: string,
-  name: string,
-  courseCode?: string
-) {
-  check(
-    (
-      await db()
-        .from("courses")
-        .insert({ id, name, course_code: courseCode ?? null })
-    ).error
-  )
-}
-// The course code, or null to clear it.
-export async function setCourseCodeCloud(
-  id: string,
-  courseCode: string | null
-) {
-  check(
-    (
-      await db()
-        .from("courses")
-        .update({ course_code: courseCode })
-        .eq("id", id)
-    ).error
-  )
+export async function insertCourse(id: string, name: string) {
+  check((await db().from("courses").insert({ id, name })).error)
 }
 export async function insertYear(id: string, courseId: string, label: string) {
   check(
