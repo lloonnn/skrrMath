@@ -23,6 +23,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
+      "zod": ["./node_modules/zod"],
       "@/*": ["./src/*"],
       "@shared/*": ["../shared/src/*"],
       "@fixtures/*": ["../fixtures/*"]

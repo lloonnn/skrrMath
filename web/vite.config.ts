@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
+        // shared/ sits outside web/, so it must find zod in web/node_modules too
+        zod: resolve(import.meta.dirname, "node_modules/zod"),
         "@": resolve(import.meta.dirname, "./src"),
         "@shared": resolve(import.meta.dirname, "../shared/src"),
         "@fixtures": resolve(import.meta.dirname, "../fixtures"),
