@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { markingLabel } from "../../../shared/src/index.ts"
 import type { ModelCall, ModelClient } from "../providers/types.ts"
 import { ModelUnavailableError } from "../providers/types.ts"
-import type { MarkRequest } from "../types.ts"
+import { markRequestSchema, type MarkRequest } from "../types.ts"
 import { markWithModel } from "./mark.ts"
 import { Jimp } from "jimp"
 import { CROPS_SYSTEM, EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
@@ -59,6 +59,50 @@ const okLines = [ml(1, "ok"), ml(2, "error", "Sign slip"), ml(3, "follows_from_e
 
 const locateFor = (n: number) =>
   JSON.stringify(Array.from({ length: n }, (_, i) => ({ text: `l${i + 1}`, box_2d: [i * 200 + 50, 100, i * 200 + 150, 900] })))
+
+describe("a lecturer's answer book", () => {
+  const book = { kind: "text" as const, text: "Q1: x = 4. Q2: x = 5.", book: true as const }
+  const bookOut = (match?: "found" | "not_found") => markOut(okLines, match ? { book_match: match } : {})
+  it("is described to the model as a book to find the question in", async () => {
+    const { client, prompts } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [bookOut("found")] })
+    await markWithModel(client, req({ verifiedAnswer: book }), opts)
+    const p = prompts.find((x) => x.step === "mark")!.prompt
+    expect(p).toContain("ANSWER BOOK")
+    expect(p).toContain("book_match")
+    expect(p).toContain("Q1: x = 4")
+    expect(p).not.toContain("ONE correct solution")
+  })
+  it("is labelled as a lecturer's solution, and the AI does not solve the question", async () => {
+    const { client, calls } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [bookOut("found")] })
+    const r = await markWithModel(client, req({ verifiedAnswer: book }), opts)
+    expect(calls).not.toContain("solve")
+    expect(r.reference_source).toBe("verified_bank")
+    expect(markingLabel(r)).toBe("Checked against a lecturer's solution")
+  })
+  it("a book that is a picture is sent as an extra picture", async () => {
+    const seen: number[] = []
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [bookOut("found")] })
+    const spy = { generate: async (c: Parameters<typeof client.generate>[0]) => { if (c.system === MARK_SYSTEM) seen.push(c.images.length); return client.generate(c) } }
+    await markWithModel(spy, req({ verifiedAnswer: { kind: "image", image: img, book: true } }), opts)
+    expect(seen).toEqual([3])
+  })
+  it("marks without the book when the question is not in it", async () => {
+    const { client, calls } = mock({ transcribe: [transcription()], solve: [solve("x=5"), solve("x=5")], mark: [bookOut("not_found"), bookOut()] })
+    const r = await markWithModel(client, req({ verifiedAnswer: book }), opts)
+    expect(calls).toContain("solve") // the AI solved it itself
+    expect(r.reference_source).toBe("ai_solved")
+    expect(markingLabel(r)).toBe("AI-checked")
+  })
+  it("does not claim a lecturer's solution for the student's own answer", async () => {
+    const { client } = mock({ transcribe: [transcription()], solve: [solve("x")], mark: [markOut(okLines)] })
+    const r = await markWithModel(client, req({ verifiedAnswer: { kind: "text", text: "x = 5" } }), opts)
+    expect(r.reference_source).toBe("verified_user")
+  })
+  it("a book of 30000 characters is accepted by the request check", () => {
+    expect(markRequestSchema.safeParse({ blockImage: img, answerImage: img, tags: { course: "T", question: "1" }, verifiedAnswer: { kind: "text", text: "x".repeat(30000), book: true } }).success).toBe(true)
+    expect(markRequestSchema.safeParse({ blockImage: img, answerImage: img, tags: { course: "T", question: "1" }, verifiedAnswer: { kind: "text", text: "x".repeat(30001), book: true } }).success).toBe(false)
+  })
+})
 
 describe("a reference answer is one route, not the only one", () => {
   it("tells the model so when the student gave a reference", async () => {

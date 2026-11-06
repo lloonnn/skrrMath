@@ -59,3 +59,12 @@ If you are not sure you read a line, set "readable" to false. Do not guess.
 Do not mark or judge anything.
 Reply with JSON only: {"question_restated": string, "lines": [{"n": number, "latex": string, "readable": boolean}]}.
 Return exactly one entry per line image, numbered from 1 in the same order.`
+
+// Added instead of REFERENCE_NOTE when the reference is a lecturer's answer book: the solutions to
+// several questions of one paper. The AI finds the right one itself (tested on made-up questions in
+// docs/TEST-LOG.md). If it cannot, the service marks without the book.
+export const BOOK_NOTE = `The reference is a lecturer's ANSWER BOOK. It holds the solutions to SEVERAL questions of one paper.
+- First find the solution for the question shown in the first image. Match the question number if it shows one, and always check the content.
+- Then mark against that solution only. The student may use a different valid method: do not mark a line wrong because it differs from the book. Judge each line on whether it follows from the line before it. Compare final answers by value.
+- Add "book_match" to your reply: "found" if you found the solution for this question, "not_found" if you cannot find it. If it is "not_found", do not judge any line.
+- Put the final answer of the solution you used in final_answer.reference_latex.`

@@ -95,3 +95,20 @@ export async function withdrawBook(id: string) {
     .eq("id", id)
   if (error) throw new Error(error.message)
 }
+
+// The live answer book for a paper, for a student's marking. null if there is none.
+// The database lets every signed-in user read a live book (decision D4).
+export async function findBook(
+  courseCode: string,
+  exam: string
+): Promise<Book | null> {
+  const { data, error } = await db()
+    .from("bank_solutions")
+    .select(COLUMNS)
+    .eq("course_code", courseCode)
+    .eq("exam", exam)
+    .eq("withdrawn", false)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return (data as Book | null) ?? null
+}

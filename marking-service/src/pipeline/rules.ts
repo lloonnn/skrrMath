@@ -14,6 +14,8 @@ export type MarkOutput = {
   final_answer: { matches_reference: "yes" | "no" | "unknown"; student_latex: string; reference_latex: string | null }
   method_ok: boolean | null
   summary: string
+  // Only when the reference was a lecturer's answer book.
+  book_match?: "found" | "not_found"
 }
 export type Box = [number, number, number, number]
 export type Context = {

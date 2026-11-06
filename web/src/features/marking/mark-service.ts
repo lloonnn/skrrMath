@@ -6,7 +6,9 @@ import {
   type MarkingResult,
   type SceneBlock,
 } from "@shared/index.ts"
+import { paperParts } from "@shared/index.ts"
 import type { Scene } from "@/features/canvas/note-canvas"
+import { findBook, type Book } from "@/features/lecturer/lecturer-api"
 import type { Reference } from "@/features/marking/reference"
 import { renderAnswer, renderQuestion } from "@/features/marking/render-images"
 import { supabase } from "@/lib/supabase"
@@ -39,6 +41,32 @@ function toRequest(r: Reference) {
         kind: "image" as const,
         image: { mimeType: r.mimeType, base64: r.base64 },
       }
+}
+
+// The lecturer's answer book for this course and note, in the shape the service expects. The course
+// is the course name when it looks like a code, and the exam is the note name. A failed lookup is
+// not an error for the student: marking just goes on without a book.
+async function bookFor(paper: ActivePaper) {
+  const { course, exam } = paperParts({
+    courseCode: paper.code,
+    exam: paper.year,
+  })
+  if (!course || !exam) return null
+  try {
+    const b: Book | null = await findBook(course, exam)
+    if (!b) return null
+    if (b.answer_text)
+      return { kind: "text" as const, text: b.answer_text, book: true as const }
+    if (b.answer_image && b.answer_image_type)
+      return {
+        kind: "image" as const,
+        image: { mimeType: b.answer_image_type, base64: b.answer_image },
+        book: true as const,
+      }
+  } catch {
+    /* no book */
+  }
+  return null
 }
 
 // What the service says it is doing, in words for the person.
@@ -120,6 +148,9 @@ async function markViaService(
   const token = (await supabase?.auth.getSession())?.data.session?.access_token
   if (!token) throw new MarkError("Sign in to mark.")
 
+  // The student's own correct answer wins. Without one, a lecturer's book for this paper is used.
+  const verified = reference ? toRequest(reference) : await bookFor(paper)
+
   const [question, answer] = await Promise.all([
     renderQuestion(scene, block),
     renderAnswer(scene, block),
@@ -138,7 +169,7 @@ async function markViaService(
       body: JSON.stringify({
         blockImage: question,
         answerImage: answer,
-        ...(reference ? { verifiedAnswer: toRequest(reference) } : {}),
+        ...(verified ? { verifiedAnswer: verified } : {}),
         tags: {
           course: paper.code.slice(0, 40),
           question: String(block.number),

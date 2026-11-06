@@ -139,6 +139,6 @@ export function markingLabel(r: Pick<MarkingResult, "reference_source">): string
     case "verified_user":
       return "Checked against your answer"
     case "verified_bank":
-      return "Checked against a bank answer"
+      return "Checked against a lecturer's solution"
   }
 }

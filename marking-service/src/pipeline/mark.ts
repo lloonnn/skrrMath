@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { MarkingResult } from "../../../shared/src/index.ts"
 import { ModelUnavailableError, type ModelCall, type ModelClient } from "../providers/types.ts"
 import type { Engine, MarkRequest, ProgressStep } from "../types.ts"
-import { CROPS_SYSTEM, EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, REFERENCE_NOTE, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
+import { BOOK_NOTE, CROPS_SYSTEM, EQUIV_SYSTEM, LOCATE_SYSTEM, MARK_SYSTEM, REFERENCE_NOTE, SOLVE_SYSTEM, TRANSCRIBE_SYSTEM } from "./prompts.ts"
 import { cropLines } from "./crop.ts"
 import {
   assemble,
@@ -39,6 +39,7 @@ const markSchema = z.object({
   }),
   method_ok: z.boolean().nullable(),
   summary: z.string(),
+  book_match: z.enum(["found", "not_found"]).optional(),
 })
 
 // Ask, parse, validate. On bad JSON or a wrong shape: one retry, then null.
@@ -129,10 +130,12 @@ export async function markWithModel(
   let agree: boolean | null = null
   let source: MarkingResult["reference_source"]
   if (req.verifiedAnswer) {
-    source = "verified_user"
-    if (req.verifiedAnswer.kind === "text") referenceText = `Verified answer (text): ${req.verifiedAnswer.text}`
+    // A lecturer's answer book comes from the shared table. Anything else is the student's own answer.
+    source = req.verifiedAnswer.book ? "verified_bank" : "verified_user"
+    const what = req.verifiedAnswer.book ? "Lecturer's answer book" : "Verified answer"
+    if (req.verifiedAnswer.kind === "text") referenceText = `${what} (text): ${req.verifiedAnswer.text}`
     else {
-      referenceText = "Verified answer: see the third image."
+      referenceText = `${what}: see the third image.`
       referenceImages = [req.verifiedAnswer.image]
     }
   } else {
@@ -171,13 +174,18 @@ export async function markWithModel(
       system: MARK_SYSTEM,
       prompt: `Question: ${t.question_restated}\nStudent lines (copied, do not change):\n${t.lines
         .map((l) => `${l.n}. ${l.readable ? l.latex : "[unreadable]"}`)
-        .join("\n")}\nReference: ${referenceText}${req.verifiedAnswer ? `\n${REFERENCE_NOTE}` : ""}`,
+        .join("\n")}\nReference: ${referenceText}${req.verifiedAnswer ? `\n${req.verifiedAnswer.book ? BOOK_NOTE : REFERENCE_NOTE}` : ""}`,
       images: [req.blockImage, req.answerImage, ...referenceImages],
       thinking: "high",
     },
     markSchema
   )
   if (!m) return unreadableResult(model, t.question_restated, "Could not mark this answer.")
+
+  // The question is not in the lecturer's book: mark as if there were no book (the AI solves it
+  // itself), so the label never claims a lecturer's solution that was not used.
+  if (req.verifiedAnswer?.book && m.book_match === "not_found")
+    return markWithModel(client, { ...req, verifiedAnswer: undefined }, opts, onStep)
 
   return assemble(t, m, { referenceSource: source, solveRunsAgree: agree, model, boxes })
 }

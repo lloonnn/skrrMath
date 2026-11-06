@@ -12,8 +12,8 @@ export const markRequestSchema = z.strictObject({
   answerImage: image,
   verifiedAnswer: z
     .discriminatedUnion("kind", [
-      z.strictObject({ kind: z.literal("text"), text: z.string().min(1).max(5000) }),
-      z.strictObject({ kind: z.literal("image"), image }),
+      z.strictObject({ kind: z.literal("text"), text: z.string().min(1).max(30000), book: z.literal(true).optional() }),
+      z.strictObject({ kind: z.literal("image"), image, book: z.literal(true).optional() }),
     ])
     .optional(),
   tags: z.strictObject({
