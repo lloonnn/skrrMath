@@ -2,7 +2,16 @@
 
 A note-taking web app for practising past-year exam papers by hand, with AI marking on the page.
 
-Status: working prototype. Notes, handwriting, AI marking, PDF export, sign-in with cloud sync, and lecturer answer books are built and tested. Not yet done: a hosted demo, and handwriting is still the weak spot. Built with Claude Code.
+Status: working prototype. Notes, handwriting, AI marking, PDF export, sign-in with cloud sync and lecturer answer books are built and tested. A demo you can open in the browser is hosted (see [Try the demo](#try-the-demo)). Reading messy handwriting is still the weak spot. Built with Claude Code.
+
+## Try the demo
+
+**Demo: https://YOUR-DEMO-ADDRESS** (add the address after deploying)
+
+The hosted demo is a mock version, so anyone can try it safely:
+- Write or paste a question on the canvas and press **Mark**. You get a saved example marking, not a live one. No AI is called, so there is no cost and no key.
+- Nothing is uploaded. Your notes stay in your own browser, and there is no sign-in.
+- Live AI marking, sign-in with cloud sync and lecturer answer books need your own setup. See [Setup](#setup).
 
 ## Problem
 
@@ -54,11 +63,11 @@ Not built yet: PDF import of a whole paper, student confirmations and reports fo
 | PDF export | Pages drawn to images, then built with jsPDF |
 | Maths in comments | KaTeX |
 | AI model | Gemini, kept as one setting (`GEMINI_MODEL`) |
-| Model access | A small marking service with three modes. The hosted prototype runs in demo mode and returns saved example results, with no AI call. Real use needs the user's own key. In real use it calls Gemini with a Google AI Studio key, so anyone can run it. The owner can switch it to Replit AI Integrations (billed to Replit credits) on their own Replit app. |
+| Model access | A small marking service with three modes. The hosted demo runs in demo mode and returns saved example results, with no AI call. Real marking needs your own key. In real use it calls Gemini with a Google AI Studio key, so anyone can run it. The owner can switch it to Replit AI Integrations (billed to Replit credits) on their own Replit app. |
 | Sign-in, database, files | Supabase |
 | App hosting | Not decided |
 
-Claude Code builds the project. A hosted prototype shows example results only, and real marking requires your own Gemini API key. Replit is an optional way for the owner to run the model API. The project does not require Replit.
+Claude Code builds the project. The hosted demo shows saved example results only, and real marking requires your own Gemini API key. Replit is an optional way for the owner to run the model API. The project does not require Replit.
 
 ## Repository structure
 

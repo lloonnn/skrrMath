@@ -1,0 +1,6 @@
+{
+  "installCommand": "npm install",
+  "buildCommand": "npm --prefix web run build",
+  "outputDirectory": "web/dist",
+  "build": { "env": { "MARK_MODE": "demo", "SUPABASE_URL": "", "SUPABASE_ANON_KEY": "" } }
+}
