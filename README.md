@@ -6,7 +6,7 @@ Status: working prototype. Notes, handwriting, AI marking, PDF export, sign-in w
 
 ## Try the demo
 
-**Demo: https://YOUR-DEMO-ADDRESS** (add the address after deploying)
+**Demo: https://skrrmath.vercel.app/**
 
 The hosted demo is a mock version, so anyone can try it safely:
 - Write or paste a question on the canvas and press **Mark**. You get a saved example marking, not a live one. No AI is called, so there is no cost and no key.
