@@ -81,7 +81,7 @@ try {
   check("a course not named like a code looks up nothing", c && c.verifiedAnswer === undefined)
   const d = await run("TEST7779", "May 2099")
   check("a withdrawn book is not sent", d && d.verifiedAnswer === undefined)
-  // the student's own answer wins over the book (a second note of the same course, same paper)
+  // the lecturer's book wins over the student's own answer (D2) (a second note of the same course, same paper)
   await addNote("TEST7777", "2099 May"); await question(); await scribble()
   await ev("[...document.querySelectorAll('aside button')].find(b => b.textContent.includes('Correct answer'))?.click()"); await sleep(500)
   await ev("document.querySelector('aside textarea').focus()"); await send("Input.insertText", { text: "my own answer" }); await sleep(700)
@@ -89,7 +89,7 @@ try {
   await ev("[...document.querySelectorAll('aside button')].find(b=>b.textContent.trim()==='Mark').click()")
   for (let i = 0; i < 30 && (await ev("window.__sent.length")) === n; i++) await sleep(500)
   const e = await ev("window.__sent.at(-1)")
-  check("the student's own correct answer is sent instead of the book", e?.verifiedAnswer?.text === "my own answer" && e.verifiedAnswer.book === undefined, JSON.stringify(e?.verifiedAnswer)?.slice(0, 100))
+  check("the lecturer's book is sent instead of the student's own correct answer", e?.verifiedAnswer?.text?.includes("Q1: x = 4") && e.verifiedAnswer.book === true, JSON.stringify(e?.verifiedAnswer)?.slice(0, 100))
   ws.close()
 } catch (e) { console.log("ERROR", e.message); fail++ } finally {
   for (const u of created) await admin(`/users/${u.id}`, { method: "DELETE" })

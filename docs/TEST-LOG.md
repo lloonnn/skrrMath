@@ -39,6 +39,7 @@ The owner fills this in after each manual test. Result is pass, fail or partly.
 | | 5 | PDF export on tablet, phone and laptop | | |
 | | 6 | Two-account bank test | | |
 | | 7 | Friend test (3 people) | | |
+| 2026-11-06 | lecturer plan, step 4 | Rerun of all checks (Claude Code): shared 159, marking-service 77, `bank-rls-test`, `rls-test`, `e2e/lecturer-screen.mjs` 21, `e2e/book-lookup.mjs` 6 | All pass. The owner's walkthrough on the tablet with two real accounts is not done. |
 | | 8 | Deployed demo on tablet, no AI calls | | |
 
 ## Facts to record

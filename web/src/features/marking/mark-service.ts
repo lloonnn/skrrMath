@@ -148,8 +148,9 @@ async function markViaService(
   const token = (await supabase?.auth.getSession())?.data.session?.access_token
   if (!token) throw new MarkError("Sign in to mark.")
 
-  // The student's own correct answer wins. Without one, a lecturer's book for this paper is used.
-  const verified = reference ? toRequest(reference) : await bookFor(paper)
+  // A lecturer's book for this paper is used first. Without one, the student's own correct answer.
+  // The lecturer's book wins over the student's own correct answer (owner decision D2, 2026-11-06).
+  const verified = (await bookFor(paper)) ?? (reference ? toRequest(reference) : undefined)
 
   const [question, answer] = await Promise.all([
     renderQuestion(scene, block),

@@ -37,9 +37,13 @@ First version (MVP):
 - Export of the marked paper as a PDF, with or without the marks.
 - Sign-in and cloud sync, so notes are the same on a tablet and a laptop.
 
+Lecturer answer books (built):
+
+- A lecturer adds one answer book per paper (course code and exam). Every signed-in student's Mark finds it by the course name and the note name, and the AI marks against it. The label says "Checked against a lecturer's solution". With no book, the AI solves it and the label stays "AI-checked".
+
 Second stage (planned, cut first if time runs short):
 
-- A shared course bank of verified answers, keyed by course code, exam year and question number. An answer is checked once and then reused by the whole course, with a trust level shown for each answer.
+- Student confirmations, reports and trust levels for shared answers.
 
 The first subject is mathematics (worked steps and proofs). Handwritten code and theory questions come later.
 
@@ -135,6 +139,16 @@ skrrMath/
 - [docs/mockup/index.html](docs/mockup/index.html): a static mockup of the proposed interface. Open it in a browser.
 - [supabase/schema.sql](supabase/schema.sql): draft database tables and access rules. Not applied, not tested.
 - [CLAUDE.md](CLAUDE.md): rules for the AI coding assistant working in this repository.
+
+## For lecturers
+
+1. The owner sets a simple lecturer code (at least 6 characters): put `LECTURER_CODE=...` in `.env`, then run `node --env-file=.env scripts/set-lecturer-code.mjs`. Share the code only with lecturers.
+2. The lecturer signs in, taps **Lecturer** (bottom left) and gives the code. Five wrong tries lock that person for an hour.
+3. Add a book: the course code (like `UECM2353`), the exam (like `2023 May`), and the solutions as text (`Q1: ...`, `Q2: ...`) or one picture.
+4. Students match it when their course is named by that code and their note is named like the exam ("May 2023" and "2023 may" match). They type nothing extra.
+5. **Change** replaces the solutions. **Withdraw** stops students getting the book.
+
+Limits: every signed-in student can read a book. A lecturer's book wins over a student's own correct answer. Students are not told when a book changes after they marked. Check the school's rules on sharing solutions first (not checked).
 
 ## Setup
 
